@@ -80,7 +80,11 @@ class SpbWalletDatabase {
       );
     }
 
-    return SpbWalletSnapshot(templates: templates, cards: cards);
+    return SpbWalletSnapshot(
+      templates: templates,
+      cards: cards,
+      categories: categories.values.toList(),
+    );
   }
 
   List<SpbWalletAttachmentRecord> loadAttachments(String cardId) {
@@ -195,6 +199,7 @@ class SpbWalletDatabase {
           .map((row) => _string(row['ID']))
           .toSet();
       var priority = 0;
+      final desiredIds = draft.fields.map((field) => field.id).toSet();
       for (final field in draft.fields) {
         final encryptedName = crypto.encryptText(field.name);
         if (existingIds.contains(field.id)) {
@@ -216,6 +221,16 @@ class SpbWalletDatabase {
           _createCardViewFieldForTemplateField(draft.id, field.id, priority);
         }
         priority++;
+      }
+      for (final fieldId in existingIds.difference(desiredIds)) {
+        _db.execute(
+            'DELETE FROM spbwlt_CardFieldValue WHERE hex(TemplateFieldID) = ?',
+            [fieldId]);
+        _db.execute(
+            'DELETE FROM spbwlt_CardViewField WHERE hex(TemplateFieldID) = ?',
+            [fieldId]);
+        _db.execute(
+            'DELETE FROM spbwlt_TemplateField WHERE hex(ID) = ?', [fieldId]);
       }
     });
   }
@@ -263,10 +278,30 @@ class SpbWalletDatabase {
       }
 
       final existingValues = <String, String>{};
+      final valueIdsByField = <String, List<String>>{};
       for (final row in _db.select(
           'SELECT hex(ID) AS ID, hex(TemplateFieldID) AS TemplateFieldID FROM spbwlt_CardFieldValue WHERE hex(CardID) = ?',
           [draft.id])) {
-        existingValues[_string(row['TemplateFieldID'])] = _string(row['ID']);
+        final fieldId = _string(row['TemplateFieldID']);
+        final valueId = _string(row['ID']);
+        valueIdsByField.putIfAbsent(fieldId, () => []).add(valueId);
+        existingValues.putIfAbsent(fieldId, () => valueId);
+      }
+      final desiredFieldIds = draft.fieldValues.keys.toSet();
+      for (final entry in valueIdsByField.entries) {
+        final ids = entry.value;
+        if (!desiredFieldIds.contains(entry.key)) {
+          for (final valueId in ids) {
+            _db.execute('DELETE FROM spbwlt_CardFieldValue WHERE hex(ID) = ?',
+                [valueId]);
+          }
+          existingValues.remove(entry.key);
+          continue;
+        }
+        for (final duplicateId in ids.skip(1)) {
+          _db.execute('DELETE FROM spbwlt_CardFieldValue WHERE hex(ID) = ?',
+              [duplicateId]);
+        }
       }
       for (final entry in draft.fieldValues.entries) {
         final valueId = existingValues[entry.key];
@@ -337,6 +372,17 @@ class SpbWalletDatabase {
     _db.execute(
         'UPDATE spbwlt_Card SET HitCount = HitCount + 1 WHERE hex(ID) = ?',
         [cardId]);
+  }
+
+  void saveCategoryIcon(String categoryPath, String iconId) {
+    _transaction(() {
+      final categoryId = _ensureCategoryPath(categoryPath);
+      if (categoryId.isEmpty) return;
+      _db.execute(
+        'UPDATE spbwlt_Category SET IconID = ? WHERE hex(ID) = ?',
+        [_idFromHex(iconId), categoryId],
+      );
+    });
   }
 
   void close() {
@@ -551,12 +597,13 @@ CREATE INDEX idx_TemplateField ON spbwlt_TemplateField (TemplateID);
   Map<String, SpbWalletCategoryRecord> _loadCategories() {
     final result = <String, SpbWalletCategoryRecord>{};
     for (final row in _db.select(
-        'SELECT hex(ID) AS ID, Name, hex(ParentCategoryID) AS ParentCategoryID FROM spbwlt_Category')) {
+        'SELECT hex(ID) AS ID, Name, hex(ParentCategoryID) AS ParentCategoryID, hex(IconID) AS IconID FROM spbwlt_Category')) {
       final id = _string(row['ID']);
       result[id] = SpbWalletCategoryRecord(
         id: id,
         name: crypto.decryptText(row['Name']),
         parentId: _string(row['ParentCategoryID']),
+        iconId: _string(row['IconID']),
       );
     }
     return result;
@@ -869,10 +916,15 @@ CREATE INDEX idx_TemplateField ON spbwlt_TemplateField (TemplateID);
 }
 
 class SpbWalletSnapshot {
-  const SpbWalletSnapshot({required this.templates, required this.cards});
+  const SpbWalletSnapshot({
+    required this.templates,
+    required this.cards,
+    required this.categories,
+  });
 
   final List<SpbWalletTemplateRecord> templates;
   final List<SpbWalletCardRecord> cards;
+  final List<SpbWalletCategoryRecord> categories;
 }
 
 class SpbWalletTemplateRecord {
@@ -984,11 +1036,15 @@ class SpbWalletAttachmentRecord {
 
 class SpbWalletCategoryRecord {
   const SpbWalletCategoryRecord(
-      {required this.id, required this.name, required this.parentId});
+      {required this.id,
+      required this.name,
+      required this.parentId,
+      required this.iconId});
 
   final String id;
   final String name;
   final String parentId;
+  final String iconId;
 }
 
 class SpbWalletOpenException implements Exception {

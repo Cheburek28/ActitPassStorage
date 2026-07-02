@@ -47,6 +47,8 @@ const app = read('app/lib/main.dart');
   'Создать новую категорию',
   'Все пиктограммы',
   'syntheticSpbIconIdForUi',
+  'Выбрать пиктограмму папки',
+  'categoryFolderIcon',
   'ChoiceChip',
   'CircleAvatar(backgroundColor: color.bg)',
 ].forEach((needle) => assert.ok(app.includes(needle), `Flutter app missing ${needle}`));
@@ -68,6 +70,10 @@ assert.match(app, /id:\s*'account'[\s\S]*label:\s*'Номер счета'[\s\S]*
 const androidScript = read('tools/build_android_apk.sh');
 assert.ok(androidScript.includes('flutter build apk --debug'));
 assert.ok(androidScript.includes('ActitPassStorage-android-debug.apk'));
+
+const spbDatabase = read('app/lib/spb_wallet/spb_wallet_database.dart');
+assert.ok(spbDatabase.includes('saveCategoryIcon'));
+assert.ok(spbDatabase.includes('UPDATE spbwlt_Category SET IconID'));
 
 const debScript = read('tools/build_linux_deb.sh');
 assert.ok(debScript.includes('flutter build linux --release'));

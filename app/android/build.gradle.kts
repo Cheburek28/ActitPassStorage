@@ -18,6 +18,23 @@ subprojects {
 subprojects {
     project.evaluationDependsOn(":app")
 }
+subprojects {
+    fun forceCompileSdk36() {
+        extensions.findByName("android")?.let { androidExtension ->
+            androidExtension.javaClass.methods
+                .firstOrNull { method ->
+                    method.name == "setCompileSdk" && method.parameterTypes.size == 1
+                }
+                ?.invoke(androidExtension, 36)
+        }
+    }
+    plugins.withId("com.android.application") {
+        forceCompileSdk36()
+    }
+    plugins.withId("com.android.library") {
+        forceCompileSdk36()
+    }
+}
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
