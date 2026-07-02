@@ -1,0 +1,77 @@
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.temp
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Local environment/secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.jks
+key.properties
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+
+# Build artifacts
+build/
+dist/
+!dist/.gitkeep
+*.deb
+*.apk
+*.aab
+*.exe
+*.msi
+*.AppImage
+*.tar.gz
+*.zip
+
+# Flutter/Dart generated state
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/doc/api/
+**/build/
+app/app.*.symbols
+app/app.*.map.json
+
+# Android generated/local state
+**/.gradle/
+**/local.properties
+**/.cxx/
+**/captures/
+**/GeneratedPluginRegistrant.java
+
+# Desktop generated state
+app/linux/flutter/ephemeral/
+app/windows/flutter/ephemeral/
+app/windows/x64/
+app/windows/x86/
+
+# Rust
+target/
+
+# Local Codex/agent state
+.agents/
+.codex/

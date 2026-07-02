@@ -1,0 +1,76 @@
+version: "3.3"
+
+services:
+  test:
+    image: actit-pass-storage-build-env:latest
+    build:
+      context: .
+      dockerfile: docker/build-env/Dockerfile
+    working_dir: /workspace
+    environment:
+      ANDROID_HOME: /opt/android-sdk
+      ANDROID_SDK_ROOT: /opt/android-sdk
+      FLUTTER_HOME: /opt/flutter
+      PUB_CACHE: /root/.pub-cache
+      GRADLE_USER_HOME: /root/.gradle
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+    volumes:
+      - .:/workspace
+      - ./dist:/workspace/dist
+      - flutter-cache:/opt/flutter/bin/cache
+      - pub-cache:/root/.pub-cache
+      - gradle-cache:/root/.gradle
+      - cargo-cache:/root/.cargo
+      - rustup-cache:/root/.rustup
+    command: bash -lc "trap 'chown -R $${HOST_UID}:$${HOST_GID} /workspace/dist 2>/dev/null || true' EXIT; npm test"
+
+  build-apk:
+    image: actit-pass-storage-build-env:latest
+    build:
+      context: .
+      dockerfile: docker/build-env/Dockerfile
+    working_dir: /workspace
+    environment:
+      ANDROID_HOME: /opt/android-sdk
+      ANDROID_SDK_ROOT: /opt/android-sdk
+      FLUTTER_HOME: /opt/flutter
+      PUB_CACHE: /root/.pub-cache
+      GRADLE_USER_HOME: /root/.gradle
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+    volumes:
+      - .:/workspace
+      - ./dist:/workspace/dist
+      - flutter-cache:/opt/flutter/bin/cache
+      - pub-cache:/root/.pub-cache
+      - gradle-cache:/root/.gradle
+      - cargo-cache:/root/.cargo
+      - rustup-cache:/root/.rustup
+    command: bash -lc "trap 'chown -R $${HOST_UID}:$${HOST_GID} /workspace/dist /workspace/app/android /workspace/app/build 2>/dev/null || true' EXIT; tools/build_android_apk.sh"
+
+  build-deb:
+    image: actit-pass-storage-linux-deb-env:latest
+    build:
+      context: .
+      dockerfile: docker/linux-deb/Dockerfile
+    working_dir: /workspace
+    environment:
+      FLUTTER_HOME: /opt/flutter
+      PUB_CACHE: /root/.pub-cache
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+    volumes:
+      - .:/workspace
+      - ./dist:/workspace/dist
+      - flutter-linux-cache:/opt/flutter/bin/cache
+      - pub-cache:/root/.pub-cache
+    command: bash -lc "trap 'chown -R $${HOST_UID}:$${HOST_GID} /workspace/dist /workspace/build /workspace/app/linux /workspace/app/build 2>/dev/null || true' EXIT; tools/build_linux_deb.sh"
+
+volumes:
+  flutter-cache:
+  pub-cache:
+  gradle-cache:
+  cargo-cache:
+  rustup-cache:
+  flutter-linux-cache:

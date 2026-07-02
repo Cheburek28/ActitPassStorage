@@ -1,0 +1,243 @@
+# Сборки ActitPassStorage
+
+Эта инструкция нужна для сборки APK и deb без установки Flutter, Android SDK и Rust на хост. На машине должны быть только Docker, `docker-compose` v1 и npm.
+
+## Что получится
+
+Все артефакты складываются в папку `dist/` проекта:
+
+```text
+dist/ActitPassStorage-android-debug.apk
+dist/actit-pass-storage_0.1.0_amd64.deb
+```
+
+Windows `setup.exe` собирается отдельно через GitHub Actions на Windows runner:
+
+```text
+ActitPassStorage-Setup-0.1.0.exe
+```
+
+## Первый запуск
+
+Из корня проекта:
+
+```bash
+npm run docker:build-image
+```
+
+Первая сборка образа тяжелая: Flutter, Android SDK, NDK, Rust и Chrome занимают несколько гигабайт и могут ставиться долго. Повторные сборки быстрее за счет Docker cache и named volumes.
+
+Проверить проект внутри контейнера:
+
+```bash
+npm run docker:test
+```
+
+## Android APK
+
+```bash
+npm run docker:apk
+```
+
+Ожидаемый результат:
+
+```text
+dist/ActitPassStorage-android-debug.apk
+```
+
+Это debug APK без release-подписи. Его можно ставить на устройство для тестирования.
+
+## Linux deb
+
+```bash
+npm run docker:deb
+```
+
+Linux `.deb` по умолчанию собирается в Ubuntu 20.04 контейнере. Это сделано специально: бинарник получает более старую glibc и запускается на большем числе Debian/Ubuntu систем. Если собрать desktop-приложение на Ubuntu 24.04, на старой системе можно получить ошибку:
+
+```text
+GLIBC_2.34 not found
+```
+
+Команда `npm run docker:deb` перед сборкой приложения пересобирает Docker image `build-deb`, поэтому изменения в `docker/linux-deb/Dockerfile` подхватываются автоматически.
+
+Ожидаемый результат:
+
+```text
+dist/actit-pass-storage_0.1.0_amd64.deb
+```
+
+Проверить метаданные пакета можно так:
+
+```bash
+dpkg -I dist/actit-pass-storage_0.1.0_amd64.deb
+```
+
+После этого переустанови пакет:
+
+```bash
+sudo apt install --reinstall ./dist/actit-pass-storage_0.1.0_amd64.deb
+```
+
+## APK и deb одной командой
+
+```bash
+npm run docker:release
+```
+
+Эта команда запускает Android APK и Linux deb сборки подряд и складывает оба файла в `dist/`.
+
+## Как проверить на Linux
+
+Без Android-устройства можно проверить три уровня.
+
+### 1. Проверить файлы без установки
+
+APK - это zip-контейнер. Быстрая проверка, что файл не битый:
+
+```bash
+file dist/ActitPassStorage-android-debug.apk
+unzip -t dist/ActitPassStorage-android-debug.apk
+```
+
+deb-пакет:
+
+```bash
+file dist/actit-pass-storage_0.1.0_amd64.deb
+dpkg -I dist/actit-pass-storage_0.1.0_amd64.deb
+```
+
+### 2. Проверить Linux-приложение
+
+Сначала собери deb:
+
+```bash
+npm run docker:deb
+```
+
+Потом установи пакет:
+
+```bash
+sudo apt install ./dist/actit-pass-storage_0.1.0_amd64.deb
+```
+
+Запусти приложение из меню рабочего стола или командой:
+
+```bash
+actit-pass-storage
+```
+
+Удалить установленный пакет:
+
+```bash
+sudo apt remove actit-pass-storage
+```
+
+### 3. Проверить APK на Android Emulator
+
+Самый простой вариант - поставить Android Studio и создать виртуальное устройство.
+
+На Ubuntu/Debian обычно нужны KVM-пакеты:
+
+```bash
+sudo apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
+sudo usermod -aG kvm,libvirt "$USER"
+```
+
+После этого перелогинься в систему, установи Android Studio, открой `Device Manager`, создай emulator с образом Android x86_64 и запусти его.
+
+Если `adb` не найден, поставь platform-tools:
+
+```bash
+sudo apt install adb
+```
+
+Установка APK в запущенный emulator:
+
+```bash
+adb devices
+adb install -r dist/ActitPassStorage-android-debug.apk
+```
+
+Логи приложения:
+
+```bash
+adb logcat
+```
+
+Этот APK является debug-сборкой. Он подходит для теста установки и запуска, но не является release APK для публикации в магазине.
+
+## Windows setup.exe
+
+Flutter Windows desktop требует Windows SDK/MSVC, поэтому setup.exe не собирается в Linux Docker.
+
+Путь сборки:
+
+1. Открой GitHub Actions.
+2. Запусти workflow `Windows setup`.
+3. Дождись завершения job на `windows-latest`.
+4. Скачай artifact:
+
+```text
+ActitPassStorage-Setup-0.1.0.exe
+```
+
+Workflow лежит здесь:
+
+```text
+.github/workflows/windows_setup.yml
+```
+
+## Как устроен Docker
+
+Файлы:
+
+```text
+docker/build-env/Dockerfile
+docker-compose.yml
+```
+
+Контейнер монтирует проект в `/workspace`, а папку артефактов так:
+
+```text
+./dist:/workspace/dist
+```
+
+Кэши вынесены в named volumes:
+
+```text
+flutter-cache
+pub-cache
+gradle-cache
+cargo-cache
+rustup-cache
+```
+
+## Частые проблемы
+
+Если Docker daemon не запущен:
+
+```text
+Couldn't connect to Docker daemon
+```
+
+Запусти Docker и повтори команду.
+
+Если старый `docker-compose` пишет про HTTP timeout, в npm-скриптах уже стоит `COMPOSE_HTTP_TIMEOUT=300`. Если машина очень медленная, можно временно запустить так:
+
+```bash
+COMPOSE_HTTP_TIMEOUT=600 npm run docker:apk
+```
+
+Если не хватает места на диске, освободи место под Docker images и volumes. Образ большой, это нормально для Flutter + Android SDK + Rust.
+
+Если сборка упала, пришли мне:
+
+```bash
+docker --version
+docker-compose --version
+npm run docker:test
+ls -la dist
+```
+
+И последние 80-120 строк ошибки из команды, которая упала.

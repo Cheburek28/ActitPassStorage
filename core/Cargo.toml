@@ -1,0 +1,13 @@
+[workspace]
+members = [
+  "crates/vault_core",
+  "crates/sync_core",
+  "crates/ffi_api",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "UNLICENSED"
+authors = ["ActitPassStorage"]

@@ -1,0 +1,55 @@
+name: Windows setup
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "app/**"
+      - "core/**"
+      - "tools/windows/**"
+      - ".github/workflows/windows_setup.yml"
+
+jobs:
+  build-setup:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Prepare Flutter platforms
+        working-directory: app
+        run: flutter create --platforms=windows,linux,android .
+
+      - name: Flutter pub get
+        working-directory: app
+        run: flutter pub get
+
+      - name: Analyze Flutter app
+        working-directory: app
+        run: flutter analyze
+
+      - name: Build Windows app
+        working-directory: app
+        run: flutter build windows --release
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build setup.exe
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "tools\windows\ActitPassStorage.iss"
+
+      - name: Upload setup.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: ActitPassStorage-Setup-0.1.0
+          path: dist/ActitPassStorage-Setup-0.1.0.exe
