@@ -109,6 +109,7 @@ jobs:
         with:
           name: windows-setup
           path: dist/ActitPassStorage-Setup.exe
+          retention-days: 1
 
   android:
     needs: version
@@ -131,6 +132,7 @@ jobs:
         with:
           name: android-apk
           path: dist/ActitPassStorage-android.apk
+          retention-days: 1
 
   linux:
     needs: version
@@ -153,6 +155,7 @@ jobs:
         with:
           name: linux-deb
           path: dist/ActitPassStorage-linux-amd64.deb
+          retention-days: 1
 
   publish:
     needs: [version, windows, android, linux]
@@ -174,3 +177,15 @@ jobs:
             release-assets/ActitPassStorage-Setup.exe
             release-assets/ActitPassStorage-android.apk
             release-assets/ActitPassStorage-linux-amd64.deb
+
+      - name: Keep only last 2 releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release list --limit 100 --json tagName,isDraft,createdAt \
+            --jq '[.[] | select(.isDraft == false)] | sort_by(.createdAt) | reverse | .[2:] | .[].tagName' |
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            gh release delete "$tag" -y --cleanup-tag
+          done

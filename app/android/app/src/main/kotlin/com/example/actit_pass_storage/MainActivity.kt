@@ -20,6 +20,15 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pickSpbWallet" -> pickSpbWallet(result)
+                "copySpbWallet" -> {
+                    val uri = call.argument<String>("uri")
+                    val displayName = call.argument<String>("displayName")
+                    if (uri == null) {
+                        result.error("bad_args", "Missing uri", null)
+                    } else {
+                        copySpbWallet(Uri.parse(uri), displayName, result)
+                    }
+                }
                 "writeSpbWallet" -> {
                     val uri = call.argument<String>("uri")
                     val localPath = call.argument<String>("localPath")
@@ -66,8 +75,12 @@ class MainActivity : FlutterActivity() {
         } catch (_: SecurityException) {
             // Some providers grant temporary access only. We can still work during this session.
         }
+        copySpbWallet(uri, null, result)
+    }
+
+    private fun copySpbWallet(uri: Uri, knownDisplayName: String?, result: MethodChannel.Result) {
         try {
-            val displayName = displayName(uri)
+            val displayName = knownDisplayName?.takeIf { it.isNotBlank() } ?: displayName(uri)
             val local = File(cacheDir, "spbwallet_${System.currentTimeMillis()}_$displayName")
             contentResolver.openInputStream(uri).use { input ->
                 FileOutputStream(local).use { output ->
@@ -75,7 +88,12 @@ class MainActivity : FlutterActivity() {
                     input.copyTo(output)
                 }
             }
-            result.success(mapOf("uri" to uri.toString(), "localPath" to local.absolutePath, "displayName" to displayName))
+            result.success(mapOf(
+                "uri" to uri.toString(),
+                "localPath" to local.absolutePath,
+                "displayName" to displayName,
+                "displayPath" to displayPath(uri, displayName)
+            ))
         } catch (error: Throwable) {
             result.error("copy_failed", error.message, null)
         }
@@ -87,6 +105,7 @@ class MainActivity : FlutterActivity() {
             contentResolver.openOutputStream(uri, "wt").use { output ->
                 if (output == null) error("Cannot open selected SPB Wallet file for writing")
                 File(localPath).inputStream().use { input -> input.copyTo(output) }
+                output.flush()
             }
             result.success(true)
         } catch (error: Throwable) {
@@ -102,5 +121,13 @@ class MainActivity : FlutterActivity() {
             }
         }
         return "wallet.swl"
+    }
+
+    private fun displayPath(uri: Uri, displayName: String): String {
+        if (uri.scheme == "file") return uri.path ?: uri.toString()
+        if (uri.authority == "com.android.providers.downloads.documents") {
+            return "/storage/emulated/0/Download/$displayName"
+        }
+        return uri.toString()
     }
 }

@@ -265,10 +265,48 @@ class CategoryTreeNode {
 }
 
 class ExistingVault {
-  const ExistingVault({required this.title, this.path});
+  const ExistingVault({
+    required this.title,
+    this.path,
+    this.uri,
+    this.displayPath,
+  });
 
   final String title;
   final String? path;
+  final String? uri;
+  final String? displayPath;
+
+  String get key => uri ?? path ?? title;
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        if (path != null) 'path': path,
+        if (uri != null) 'uri': uri,
+        if (displayPath != null) 'displayPath': displayPath,
+      };
+
+  factory ExistingVault.fromJson(Map<String, dynamic> json) {
+    final title = json['title']?.toString();
+    final path = json['path']?.toString();
+    final uri = json['uri']?.toString();
+    final displayPath = json['displayPath']?.toString();
+    return ExistingVault(
+      title: title == null || title.isEmpty
+          ? _vaultTitleFromPath(displayPath ?? path ?? uri ?? '.swl база')
+          : title,
+      path: path,
+      uri: uri,
+      displayPath: displayPath,
+    );
+  }
+}
+
+String _vaultTitleFromPath(String path) {
+  if (path.startsWith('content://')) return '.swl база';
+  final normalized = path.replaceAll('\\', '/');
+  final slash = normalized.lastIndexOf('/');
+  return slash < 0 ? path : normalized.substring(slash + 1);
 }
 
 abstract class VaultSession {
@@ -1133,6 +1171,7 @@ class _VaultShellState extends State<VaultShell> {
   String? message;
   String? spbWalletPath;
   String? spbWalletUri;
+  String? spbWalletDisplayPath;
   String? syncSourcePath;
   String? syncSourceUrl;
   String? syncOriginProvider;
@@ -1159,16 +1198,33 @@ class _VaultShellState extends State<VaultShell> {
   bool get createMode => entryMode == EntryMode.createSwl;
 
   File get swlVaultFile {
-    final safeName = vaultNameController.text.trim().isEmpty
+    final rawName = vaultNameController.text
+        .trim()
+        .replaceAll(RegExp(r'\.swl$', caseSensitive: false), '');
+    final safeName = rawName.isEmpty
         ? 'personal'
-        : vaultNameController.text.trim();
+        : rawName;
     final sanitized =
         safeName.replaceAll(RegExp(r'[^\wа-яА-ЯёЁ.-]+', unicode: true), '_');
     return File('${Directory.systemTemp.path}/$sanitized.swl');
   }
 
   File get recentVaultsFile =>
-      File('${Directory.systemTemp.path}/actitpass_recent_swl.json');
+      File('${appStateDirectory.path}/actitpass_recent_swl.json');
+
+  Directory get appStateDirectory {
+    if (Platform.isAndroid) {
+      final directory = Directory('${Directory.systemTemp.parent.path}/files');
+      if (!directory.existsSync()) {
+        directory.createSync(recursive: true);
+      }
+      return directory;
+    }
+    return Directory.systemTemp;
+  }
+
+  bool isAndroidCacheWalletPath(String path) =>
+      Platform.isAndroid && path.contains('/cache/spbwallet_');
 
   @override
   void initState() {
@@ -1205,15 +1261,14 @@ class _VaultShellState extends State<VaultShell> {
           applySpbSnapshot(snapshot);
           conflicts = [];
           lastSyncAt = null;
-          syncSourcePath = null;
-          syncSourceUrl = null;
-          syncOriginProvider = null;
           selectedItemId = items.isEmpty ? null : items.first.id;
           unlocked = true;
           activeView = 'cards';
           message = null;
         });
-        await rememberRecentVault(spbWalletPath!);
+        if (!Platform.isAndroid || spbWalletUri == null) {
+          await rememberRecentVault(spbWalletPath!);
+        }
       } catch (error) {
         setState(() => message = 'Не удалось открыть .swl базу: $error');
       }
@@ -1265,12 +1320,24 @@ class _VaultShellState extends State<VaultShell> {
         setState(() {
           spbWalletPath = path;
           spbWalletUri = picked['uri']?.toString();
+          spbWalletDisplayPath =
+              picked['displayPath']?.toString() ?? spbWalletUri;
+          syncSourcePath = null;
+          syncSourceUrl = null;
+          syncOriginProvider = null;
           lastAutoOpenPassword = null;
           vaultNameController.text = picked['displayName']?.toString() ??
               File(path).uri.pathSegments.last;
           message = null;
         });
-        await rememberRecentVault(path);
+        final uri = spbWalletUri;
+        if (uri != null && uri.isNotEmpty) {
+          await rememberRecentVaultEntry(ExistingVault(
+            title: vaultNameController.text,
+            uri: uri,
+            displayPath: spbWalletDisplayPath,
+          ));
+        }
         scheduleAutoOpenVault(passwordController.text);
       } catch (error) {
         setState(() => message = 'Не удалось выбрать .swl файл: $error');
@@ -1287,6 +1354,7 @@ class _VaultShellState extends State<VaultShell> {
     setState(() {
       spbWalletPath = path;
       spbWalletUri = null;
+      spbWalletDisplayPath = path;
       syncSourcePath = null;
       syncSourceUrl = null;
       syncOriginProvider = null;
@@ -1304,45 +1372,75 @@ class _VaultShellState extends State<VaultShell> {
       if (recentVaultsFile.existsSync()) {
         final decoded =
             jsonDecode(await recentVaultsFile.readAsString()) as List<dynamic>;
-        for (final rawPath in decoded.whereType<String>()) {
-          final file = File(rawPath);
-          if (!file.existsSync() || !file.path.toLowerCase().endsWith('.swl')) {
+        for (final raw in decoded) {
+          ExistingVault? vault;
+          if (raw is String) {
+            final file = File(raw);
+            if (isAndroidCacheWalletPath(file.path)) continue;
+            if (!file.existsSync() ||
+                !file.path.toLowerCase().endsWith('.swl')) {
+              continue;
+            }
+            vault = ExistingVault(
+              title: _vaultTitleFromPath(file.path),
+              path: file.path,
+              displayPath: file.path,
+            );
+          } else if (raw is Map<String, dynamic>) {
+            vault = ExistingVault.fromJson(raw);
+            if (vault.uri == null) {
+              final path = vault.path;
+              if (path == null || isAndroidCacheWalletPath(path)) continue;
+              if (!File(path).existsSync() ||
+                  !path.toLowerCase().endsWith('.swl')) {
+                continue;
+              }
+            }
+          } else if (raw is Map) {
+            vault = ExistingVault.fromJson(Map<String, dynamic>.from(raw));
+          }
+          if (vault == null) continue;
+          if (found.any((entry) => entry.key == vault!.key)) {
             continue;
           }
-          final title = file.uri.pathSegments.isEmpty
-              ? file.path
-              : file.uri.pathSegments.last;
-          if (found.any((vault) => vault.path == file.path)) continue;
-          found.add(ExistingVault(title: title, path: file.path));
+          found.add(vault);
         }
       }
     } catch (_) {}
     if (!mounted) return;
     setState(() => recentVaults = found);
+    if (found.isNotEmpty &&
+        !unlocked &&
+        entryMode == EntryMode.openSwl &&
+        (spbWalletPath == null || spbWalletPath!.isEmpty)) {
+      await chooseExistingVault(found.first);
+    }
   }
 
   Future<void> rememberRecentVault(String path) async {
     if (path.isEmpty) return;
-    final paths = [
-      path,
+    if (isAndroidCacheWalletPath(path)) return;
+    await rememberRecentVaultEntry(ExistingVault(
+      title: _vaultTitleFromPath(path),
+      path: path,
+      displayPath: path,
+    ));
+  }
+
+  Future<void> rememberRecentVaultEntry(ExistingVault vault) async {
+    final entries = [
+      vault,
       ...recentVaults
-          .map((vault) => vault.path)
-          .whereType<String>()
-          .where((entry) => entry != path),
+          .where((entry) => entry.key != vault.key)
+          .where((entry) =>
+              entry.uri != null ||
+              (entry.path != null && !isAndroidCacheWalletPath(entry.path!))),
     ].take(8).toList();
-    await recentVaultsFile.writeAsString(jsonEncode(paths));
+    await recentVaultsFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(
+            entries.map((entry) => entry.toJson()).toList()));
     if (!mounted) return;
-    setState(() {
-      recentVaults = paths
-          .where((entry) => File(entry).existsSync())
-          .map((entry) => ExistingVault(
-                title: File(entry).uri.pathSegments.isEmpty
-                    ? entry
-                    : File(entry).uri.pathSegments.last,
-                path: entry,
-              ))
-          .toList();
-    });
+    setState(() => recentVaults = entries);
   }
 
   Future<void> createSwlVault(String password) async {
@@ -1407,6 +1505,7 @@ class _VaultShellState extends State<VaultShell> {
     setState(() {
       spbWalletPath = file.path;
       spbWalletUri = null;
+      spbWalletDisplayPath = file.path;
       syncSourcePath = null;
       syncSourceUrl = null;
       syncOriginProvider = null;
@@ -1475,6 +1574,7 @@ class _VaultShellState extends State<VaultShell> {
     setState(() {
       spbWalletPath = localPath;
       spbWalletUri = null;
+      spbWalletDisplayPath = sourcePath ?? sourceUrl ?? localPath;
       syncSourcePath = sourcePath;
       syncSourceUrl = sourceUrl;
       syncOriginProvider = syncProvider;
@@ -1583,24 +1683,63 @@ class _VaultShellState extends State<VaultShell> {
         'Basic ${base64Encode(utf8.encode('$username:$password'))}');
   }
 
-  void chooseExistingVault(ExistingVault vault) {
-    setState(() {
-      entryMode = EntryMode.openSwl;
-      message = null;
-      spbWalletPath = vault.path;
-      spbWalletUri = null;
-      syncSourcePath = null;
-      syncSourceUrl = null;
-      syncOriginProvider = null;
-      vaultNameController.text = vault.title;
-      lastAutoOpenPassword = null;
-    });
-    scheduleAutoOpenVault(passwordController.text);
+  Future<void> chooseExistingVault(ExistingVault vault) async {
+    try {
+      if (Platform.isAndroid && vault.uri != null) {
+        final copied = await spbWalletChannel
+            .invokeMapMethod<String, Object?>('copySpbWallet', {
+          'uri': vault.uri,
+          'displayName': vault.title,
+        });
+        final localPath = copied?['localPath']?.toString();
+        if (localPath == null || localPath.isEmpty) {
+          throw StateError('Не удалось открыть выбранную .swl базу.');
+        }
+        setState(() {
+          entryMode = EntryMode.openSwl;
+          message = null;
+          spbWalletPath = localPath;
+          spbWalletUri = vault.uri;
+          spbWalletDisplayPath =
+              copied?['displayPath']?.toString() ?? vault.displayPath;
+          syncSourcePath = null;
+          syncSourceUrl = null;
+          syncOriginProvider = null;
+          vaultNameController.text =
+              copied?['displayName']?.toString() ?? vault.title;
+          lastAutoOpenPassword = null;
+        });
+      } else {
+        setState(() {
+          entryMode = EntryMode.openSwl;
+          message = null;
+          spbWalletPath = vault.path;
+          spbWalletUri = null;
+          spbWalletDisplayPath = vault.displayPath ?? vault.path;
+          syncSourcePath = null;
+          syncSourceUrl = null;
+          syncOriginProvider = null;
+          vaultNameController.text = vault.title;
+          lastAutoOpenPassword = null;
+        });
+      }
+      await rememberRecentVaultEntry(ExistingVault(
+        title: vaultNameController.text,
+        path: Platform.isAndroid && spbWalletUri != null ? null : spbWalletPath,
+        uri: spbWalletUri,
+        displayPath: spbWalletDisplayPath,
+      ));
+      scheduleAutoOpenVault(passwordController.text);
+    } catch (error) {
+      setState(() =>
+          message = 'Не удалось открыть последнюю .swl базу: $error');
+    }
   }
 
   Future<bool> writeBackSpbWallet() async {
     var ok = true;
     try {
+      spbWallet?.flushToDisk();
       if (Platform.isAndroid && spbWalletUri != null && spbWalletPath != null) {
         await spbWalletChannel.invokeMethod<bool>('writeSpbWallet', {
           'uri': spbWalletUri,
@@ -1960,11 +2099,15 @@ class _VaultShellState extends State<VaultShell> {
     await writeBackSpbWallet();
     spbWallet?.close();
     spbWallet = null;
-    spbWalletUri = null;
     syncSourcePath = null;
     syncSourceUrl = null;
     syncOriginProvider = null;
-    setState(() => unlocked = false);
+    passwordController.clear();
+    lastAutoOpenPassword = null;
+    setState(() {
+      unlocked = false;
+      message = null;
+    });
   }
 
   Widget buildMenuHeader({required bool compact}) {
@@ -2038,8 +2181,12 @@ class _VaultShellState extends State<VaultShell> {
 
   String openDatabaseTitle() {
     if (spbWallet != null) {
-      final path = spbWalletPath;
+      final path = spbWalletDisplayPath ?? spbWalletPath;
       if (path == null || path.isEmpty) return '.swl база';
+      if (path.startsWith('content://')) {
+        final name = vaultNameController.text.trim();
+        return name.isEmpty ? '.swl база' : name;
+      }
       return File(path).uri.pathSegments.isEmpty
           ? path
           : File(path).uri.pathSegments.last;
@@ -2047,6 +2194,8 @@ class _VaultShellState extends State<VaultShell> {
     final name = vaultNameController.text.trim();
     return name.isEmpty ? 'personal' : name;
   }
+
+  String? spbWalletUserPath() => spbWalletDisplayPath ?? spbWalletPath;
 
   String lastSyncText() {
     final value = lastSyncAt;
@@ -2089,6 +2238,7 @@ class _VaultShellState extends State<VaultShell> {
                 ),
                 Card(
                   elevation: 0,
+                  clipBehavior: Clip.antiAlias,
                   child: SizedBox(
                     width: 380,
                     child: Padding(
@@ -2110,47 +2260,18 @@ class _VaultShellState extends State<VaultShell> {
                               entryMode = value.first;
                               lastAutoOpenPassword = null;
                               message = null;
+                              if (entryMode == EntryMode.createSwl) {
+                                vaultNameController.text = vaultNameController
+                                    .text
+                                    .trim()
+                                    .replaceAll(RegExp(r'\.swl$',
+                                        caseSensitive: false), '');
+                              }
                             }),
                           ),
                           const SizedBox(height: 18),
-                          if (!createMode && recentVaults.isNotEmpty) ...[
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text('Последние файлы',
-                                  style:
-                                      Theme.of(context).textTheme.titleSmall),
-                            ),
-                            const SizedBox(height: 8),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 150),
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                itemCount: recentVaults.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 4),
-                                itemBuilder: (context, index) {
-                                  final vault = recentVaults[index];
-                                  return ListTile(
-                                    dense: true,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8)),
-                                    tileColor: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    leading: const Icon(Icons.history),
-                                    title: Text(vault.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis),
-                                    subtitle: Text(vault.path ?? '',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis),
-                                    onTap: () => chooseExistingVault(vault),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                          ],
+                          if (!createMode && recentVaults.isNotEmpty)
+                            buildRecentVaultsPicker(),
                           if (!createMode) ...[
                             OutlinedButton.icon(
                               onPressed: pickSpbWalletFile,
@@ -2161,9 +2282,9 @@ class _VaultShellState extends State<VaultShell> {
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                spbWalletPath == null
+                                spbWalletUserPath() == null
                                     ? 'Файл .swl не выбран'
-                                    : spbWalletPath!,
+                                    : spbWalletUserPath()!,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -2225,6 +2346,110 @@ class _VaultShellState extends State<VaultShell> {
     );
   }
 
+  Widget buildRecentVaultsPicker() {
+    final visibleRows = min(recentVaults.length, 2);
+    final height = 48.0 + visibleRows * 58.0 + max(0, visibleRows - 1) * 4.0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        height: height.clamp(106.0, 168.0).toDouble(),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+        ),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 40,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Последние файлы',
+                      style: Theme.of(context).textTheme.titleSmall),
+                ),
+              ),
+            ),
+            Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            Expanded(
+              child: Scrollbar(
+                child: ListView.separated(
+                  primary: false,
+                  padding: const EdgeInsets.all(6),
+                  itemCount: recentVaults.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  itemBuilder: (context, index) {
+                    final vault = recentVaults[index];
+                    return SizedBox(
+                      height: 54,
+                      child: Material(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(6),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () {
+                            chooseExistingVault(vault);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 7),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.history, size: 20),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(vault.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 13)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        vault.displayPath ??
+                                            vault.path ??
+                                            vault.uri ??
+                                            '',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget buildSideRail() {
     return Material(
       color: Colors.white,
@@ -2236,7 +2461,7 @@ class _VaultShellState extends State<VaultShell> {
             ListTile(
               leading: const CircleAvatar(child: Text('A')),
               title: const Text('.swl база'),
-              subtitle: Text(spbWalletPath ?? 'открытая .swl база'),
+              subtitle: Text(spbWalletUserPath() ?? 'открытая .swl база'),
             ),
             const SizedBox(height: 12),
             ...navButtons(),
@@ -3312,7 +3537,7 @@ class _VaultShellState extends State<VaultShell> {
           child: ListTile(
             leading: const Icon(Icons.storage_outlined),
             title: Text(openDatabaseTitle()),
-            subtitle: Text(spbWalletPath ?? 'локальный .swl файл'),
+            subtitle: Text(spbWalletUserPath() ?? 'локальный .swl файл'),
           ),
         ),
       ],

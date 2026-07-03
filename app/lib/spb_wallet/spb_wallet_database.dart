@@ -385,7 +385,12 @@ class SpbWalletDatabase {
     });
   }
 
+  void flushToDisk() {
+    _db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+  }
+
   void close() {
+    flushToDisk();
     _db.dispose();
   }
 

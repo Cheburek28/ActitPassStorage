@@ -53,3 +53,4 @@ jobs:
         with:
           name: ActitPassStorage-Setup
           path: dist/ActitPassStorage-Setup-*.exe
+          retention-days: 1
