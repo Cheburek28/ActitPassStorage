@@ -41,7 +41,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Bump version
         id: version
@@ -60,8 +60,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json app/pubspec.yaml core/Cargo.toml tools/windows/ActitPassStorage.iss tools/build_linux_deb.sh
           git commit -m "chore: release v$VERSION [skip release]"
-          git tag "v$VERSION"
-          git push origin HEAD:master --follow-tags
+          git tag -a "v$VERSION" -m "ActitPassStorage v$VERSION"
+          git push origin HEAD:master
+          git push origin "refs/tags/v$VERSION"
 
   windows:
     needs: version
