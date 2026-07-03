@@ -14,12 +14,28 @@ void main() {
   runApp(const ActitPassApp());
 }
 
+final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+Future<void> copyCardFieldValue(String value) async {
+  await Clipboard.setData(ClipboardData(text: value));
+  rootScaffoldMessengerKey.currentState
+    ?..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text('Скопировано'),
+        duration: Duration(milliseconds: 900),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+}
+
 class ActitPassApp extends StatelessWidget {
   const ActitPassApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       title: 'ActitPassStorage',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -1940,6 +1956,17 @@ class _VaultShellState extends State<VaultShell> {
     setState(() => menuOpenOverride = !current);
   }
 
+  Future<void> lockVault() async {
+    await writeBackSpbWallet();
+    spbWallet?.close();
+    spbWallet = null;
+    spbWalletUri = null;
+    syncSourcePath = null;
+    syncSourceUrl = null;
+    syncOriginProvider = null;
+    setState(() => unlocked = false);
+  }
+
   Widget buildMenuHeader({required bool compact}) {
     return Material(
       color: Colors.white,
@@ -2215,16 +2242,7 @@ class _VaultShellState extends State<VaultShell> {
             ...navButtons(),
             const Spacer(),
             OutlinedButton.icon(
-              onPressed: () async {
-                await writeBackSpbWallet();
-                spbWallet?.close();
-                spbWallet = null;
-                spbWalletUri = null;
-                syncSourcePath = null;
-                syncSourceUrl = null;
-                syncOriginProvider = null;
-                setState(() => unlocked = false);
-              },
+              onPressed: lockVault,
               icon: const Icon(Icons.lock_outline),
               label: const Text('Заблокировать'),
             ),
@@ -2240,7 +2258,19 @@ class _VaultShellState extends State<VaultShell> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.all(8),
-        child: Row(children: navButtons(compact: compact)),
+        child: Row(
+          children: [
+            ...navButtons(compact: compact),
+            Padding(
+              padding: EdgeInsets.only(right: compact ? 8 : 0),
+              child: OutlinedButton.icon(
+                onPressed: lockVault,
+                icon: const Icon(Icons.lock_outline),
+                label: const Text('Заблокировать'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3012,31 +3042,34 @@ class _VaultShellState extends State<VaultShell> {
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: ListView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: template.fields
-                        .where((field) =>
-                            (item.values[field.id] ?? '').isNotEmpty)
-                        .map((field) {
-                      final revealKey = '${item.id}:${field.id}';
-                      final isRevealed = revealed.contains(revealKey);
-                      final value = item.values[field.id]!;
-                      final secret = fieldDefinitionIsSecret(field);
-                      return FieldValueRow(
-                        label: field.label,
-                        value: secret && !isRevealed ? '••••••••' : value,
-                        foreground: color.fg,
-                        secret: secret,
-                        revealed: isRevealed,
-                        onToggle: secret
-                            ? () => updateItemCardState(() {
-                                  isRevealed
-                                      ? revealed.remove(revealKey)
-                                      : revealed.add(revealKey);
-                                }, onStateChange)
-                            : null,
-                      );
-                    }).toList(),
+                  child: Scrollbar(
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: template.fields
+                          .where((field) =>
+                              (item.values[field.id] ?? '').isNotEmpty)
+                          .map((field) {
+                        final revealKey = '${item.id}:${field.id}';
+                        final isRevealed = revealed.contains(revealKey);
+                        final value = item.values[field.id]!;
+                        final secret = fieldDefinitionIsSecret(field);
+                        return FieldValueRow(
+                          label: field.label,
+                          value: secret && !isRevealed ? '••••••••' : value,
+                          copyValue: value,
+                          foreground: color.fg,
+                          secret: secret,
+                          revealed: isRevealed,
+                          onToggle: secret
+                              ? () => updateItemCardState(() {
+                                    isRevealed
+                                        ? revealed.remove(revealKey)
+                                        : revealed.add(revealKey);
+                                  }, onStateChange)
+                              : null,
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -3599,6 +3632,7 @@ class FieldValueRow extends StatelessWidget {
   const FieldValueRow({
     required this.label,
     required this.value,
+    required this.copyValue,
     required this.foreground,
     this.secret = false,
     this.revealed = false,
@@ -3608,6 +3642,7 @@ class FieldValueRow extends StatelessWidget {
 
   final String label;
   final String value;
+  final String copyValue;
   final Color foreground;
   final bool secret;
   final bool revealed;
@@ -3615,49 +3650,57 @@ class FieldValueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.44),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: foreground.withValues(alpha: 0.10)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: foreground.withValues(alpha: 0.62),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      TextStyle(color: foreground, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => copyCardFieldValue(copyValue),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.44),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: foreground.withValues(alpha: 0.10)),
           ),
-          if (secret && onToggle != null)
-            IconButton(
-              tooltip: revealed ? 'Скрыть' : 'Показать',
-              icon: Icon(revealed ? Icons.visibility_off : Icons.visibility),
-              onPressed: onToggle,
-            ),
-        ],
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: foreground.withValues(alpha: 0.62),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      value,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: foreground, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              if (secret && onToggle != null)
+                IconButton(
+                  tooltip: revealed ? 'Скрыть' : 'Показать',
+                  icon:
+                      Icon(revealed ? Icons.visibility_off : Icons.visibility),
+                  onPressed: onToggle,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
