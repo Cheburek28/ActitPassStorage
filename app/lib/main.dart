@@ -4,9 +4,11 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'spb_wallet/spb_wallet_database.dart';
 
@@ -702,6 +704,21 @@ const quickTemplateIconIds = [
   'shield',
 ];
 
+const navEntries = [
+  NavEntry('cards', Icons.credit_card, 'Карточки'),
+  NavEntry('frequent', Icons.star_outline, 'Частые'),
+  NavEntry('templates', Icons.dashboard_customize_outlined, 'Шаблоны'),
+  NavEntry('settings', Icons.settings_outlined, 'Настройки'),
+];
+
+class NavEntry {
+  const NavEntry(this.id, this.icon, this.label);
+
+  final String id;
+  final IconData icon;
+  final String label;
+}
+
 List<TemplateIcon> quickTemplateIcons(String selectedIconId) {
   final selected = iconById(selectedIconId);
   final icons = [
@@ -865,6 +882,149 @@ List<CardTemplate> builtInTemplates() => const [
               label: 'Пароль интернет-банка',
               type: 'password',
               secret: true),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_email_account',
+        name: 'Email аккаунт',
+        iconId: 'mail',
+        colorId: 'green',
+        builtIn: true,
+        fields: [
+          FieldDefinition(
+              id: 'email', label: 'Email', type: 'email', required: true),
+          FieldDefinition(
+              id: 'password',
+              label: 'Пароль',
+              type: 'password',
+              required: true,
+              secret: true),
+          FieldDefinition(
+              id: 'recovery', label: 'Резервная почта', type: 'email'),
+          FieldDefinition(
+              id: 'notes', label: 'Заметки', type: 'multiline_note'),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_api_key',
+        name: 'API ключ',
+        iconId: 'code',
+        colorId: 'violet',
+        builtIn: true,
+        fields: [
+          FieldDefinition(
+              id: 'service', label: 'Сервис', type: 'text', required: true),
+          FieldDefinition(id: 'url', label: 'Панель', type: 'url'),
+          FieldDefinition(
+              id: 'token',
+              label: 'Токен',
+              type: 'custom_secret',
+              required: true),
+          FieldDefinition(
+              id: 'notes',
+              label: 'Права и ограничения',
+              type: 'multiline_note'),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_crypto_wallet',
+        name: 'Криптокошелек',
+        iconId: 'crypto',
+        colorId: 'amber',
+        builtIn: true,
+        fields: [
+          FieldDefinition(
+              id: 'wallet', label: 'Название кошелька', type: 'text'),
+          FieldDefinition(id: 'address', label: 'Адрес', type: 'text'),
+          FieldDefinition(
+              id: 'seed',
+              label: 'Seed-фраза',
+              type: 'custom_secret',
+              required: true),
+          FieldDefinition(id: 'pin', label: 'PIN', type: 'password'),
+          FieldDefinition(
+              id: 'notes', label: 'Заметки', type: 'multiline_note'),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_contact',
+        name: 'Контакт',
+        iconId: 'contact',
+        colorId: 'neutral',
+        builtIn: true,
+        fields: [
+          FieldDefinition(id: 'name', label: 'Имя', type: 'text'),
+          FieldDefinition(id: 'phone', label: 'Телефон', type: 'phone'),
+          FieldDefinition(id: 'email', label: 'Email', type: 'email'),
+          FieldDefinition(
+              id: 'address', label: 'Адрес', type: 'multiline_note'),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_subscription',
+        name: 'Подписка',
+        iconId: 'ticket',
+        colorId: 'blue',
+        builtIn: true,
+        fields: [
+          FieldDefinition(
+              id: 'service', label: 'Сервис', type: 'text', required: true),
+          FieldDefinition(id: 'login', label: 'Логин', type: 'username'),
+          FieldDefinition(id: 'renewal', label: 'Дата продления', type: 'date'),
+          FieldDefinition(id: 'price', label: 'Стоимость', type: 'number'),
+          FieldDefinition(
+              id: 'notes', label: 'Условия', type: 'multiline_note'),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_insurance',
+        name: 'Страховка',
+        iconId: 'umbrella',
+        colorId: 'teal',
+        builtIn: true,
+        fields: [
+          FieldDefinition(
+              id: 'company', label: 'Компания', type: 'text', required: true),
+          FieldDefinition(
+              id: 'policy',
+              label: 'Номер полиса',
+              type: 'custom_secret',
+              required: true),
+          FieldDefinition(id: 'valid_to', label: 'Действует до', type: 'date'),
+          FieldDefinition(
+              id: 'phone', label: 'Телефон поддержки', type: 'phone'),
+          FieldDefinition(
+              id: 'notes', label: 'Условия', type: 'multiline_note'),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_travel',
+        name: 'Поездка',
+        iconId: 'plane',
+        colorId: 'violet',
+        builtIn: true,
+        fields: [
+          FieldDefinition(id: 'carrier', label: 'Перевозчик', type: 'text'),
+          FieldDefinition(id: 'booking', label: 'Бронь/PNR', type: 'text'),
+          FieldDefinition(id: 'date', label: 'Дата', type: 'date'),
+          FieldDefinition(
+              id: 'document', label: 'Документ', type: 'custom_secret'),
+          FieldDefinition(
+              id: 'notes', label: 'Заметки', type: 'multiline_note'),
+        ],
+      ),
+      CardTemplate(
+        id: 'tpl_home_access',
+        name: 'Домашний доступ',
+        iconId: 'house_key',
+        colorId: 'green',
+        builtIn: true,
+        fields: [
+          FieldDefinition(id: 'object', label: 'Объект', type: 'text'),
+          FieldDefinition(id: 'code', label: 'Код доступа', type: 'password'),
+          FieldDefinition(id: 'contact', label: 'Контакт', type: 'phone'),
+          FieldDefinition(
+              id: 'notes', label: 'Инструкции', type: 'multiline_note'),
         ],
       ),
     ];
@@ -1041,7 +1201,8 @@ bool isRealNotesField(FieldDefinition field) {
       isNotesLabel(field.label);
 }
 
-bool fieldTypeIsSecret(String type) => type == 'password' || type == 'custom_secret';
+bool fieldTypeIsSecret(String type) =>
+    type == 'password' || type == 'custom_secret';
 
 bool fieldDefinitionIsSecret(FieldDefinition field) =>
     fieldTypeIsSecret(field.type);
@@ -1075,6 +1236,77 @@ int spbFieldTypeId(FieldDefinition field) {
       return 1;
     default:
       return 1;
+  }
+}
+
+bool createInitialSwlVaultFile(Map<String, dynamic> payload) {
+  final path = payload['path'] as String;
+  final password = payload['password'] as String;
+  final templates = (payload['templates'] as List<dynamic>)
+      .map((entry) =>
+          CardTemplate.fromJson(Map<String, dynamic>.from(entry as Map)))
+      .toList();
+  final itemEntries = (payload['items'] as List<dynamic>)
+      .map((entry) => Map<String, dynamic>.from(entry as Map))
+      .toList();
+  final items = itemEntries.map((entry) => SecretItem.fromJson(entry)).toList();
+  final categoryIcons = Map<String, String>.from(
+      payload['categoryIcons'] as Map<dynamic, dynamic>);
+  SpbWalletDatabase? wallet;
+  try {
+    wallet = SpbWalletDatabase.create(path, password);
+    for (final template in templates) {
+      wallet.saveTemplate(
+        SpbWalletTemplateDraft(
+          id: template.id,
+          name: template.name,
+          iconId: syntheticSpbIconIdForUi(template.iconId),
+          fields: template.fields
+              .where((field) => field.id != spbDescriptionFieldId)
+              .map((field) => SpbWalletTemplateFieldRecord(
+                  id: field.id,
+                  name: field.label,
+                  templateId: template.id,
+                  fieldTypeId: spbFieldTypeId(field)))
+              .toList(),
+        ),
+      );
+    }
+    final templateMap = {
+      for (final template in templates) template.id: template
+    };
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      final template = templateMap[item.templateId];
+      if (template == null) continue;
+      wallet.saveCard(
+        SpbWalletCardDraft(
+          id: item.id,
+          title: item.title,
+          description: '',
+          categoryPath: item.category,
+          templateId: template.id,
+          iconId: syntheticSpbIconIdForUi(item.iconId ?? template.iconId),
+          fieldValues: item.values,
+          cardColor: itemEntries[i]['cardColor'] as int,
+          backgroundImageBase64: item.backgroundImageBase64,
+        ),
+      );
+    }
+    for (final entry in categoryIcons.entries) {
+      wallet.saveCategoryIcon(entry.key, syntheticSpbIconIdForUi(entry.value));
+    }
+    wallet.close();
+    return true;
+  } catch (_) {
+    try {
+      wallet?.close();
+    } catch (_) {}
+    try {
+      final file = File(path);
+      if (file.existsSync()) file.deleteSync();
+    } catch (_) {}
+    rethrow;
   }
 }
 
@@ -1167,6 +1399,7 @@ class _VaultShellState extends State<VaultShell> {
   bool showConfirm = false;
   bool unlocked = false;
   bool? menuOpenOverride;
+  bool creatingVault = false;
   String activeView = 'cards';
   String? message;
   String? spbWalletPath;
@@ -1192,27 +1425,29 @@ class _VaultShellState extends State<VaultShell> {
   List<ExistingVault> recentVaults = [];
   final Map<String, String> spbIconIdByUiIcon = {};
   Map<String, String> categoryIconsByPath = {};
+  Set<String> categoryPaths = {};
   final Set<String> revealed = {};
   final Map<String, String> syncConfig = {};
 
   bool get createMode => entryMode == EntryMode.createSwl;
 
-  File get swlVaultFile {
+  String get normalizedVaultBaseName {
     final rawName = vaultNameController.text
         .trim()
         .replaceAll(RegExp(r'\.swl$', caseSensitive: false), '');
-    final safeName = rawName.isEmpty
-        ? 'personal'
-        : rawName;
-    final sanitized =
-        safeName.replaceAll(RegExp(r'[^\wа-яА-ЯёЁ.-]+', unicode: true), '_');
-    return File('${Directory.systemTemp.path}/$sanitized.swl');
+    final safeName = rawName.isEmpty ? 'personal' : rawName;
+    return safeName.replaceAll(RegExp(r'[^\wа-яА-ЯёЁ.-]+', unicode: true), '_');
   }
 
-  File get recentVaultsFile =>
-      File('${appStateDirectory.path}/actitpass_recent_swl.json');
+  Future<File> swlVaultFile() async {
+    final directory = await appVaultDirectory();
+    return File('${directory.path}/$normalizedVaultBaseName.swl');
+  }
 
-  Directory get appStateDirectory {
+  Future<File> recentVaultsFile() async =>
+      File('${(await appStateDirectory()).path}/actitpass_recent_swl.json');
+
+  Future<Directory> appStateDirectory() async {
     if (Platform.isAndroid) {
       final directory = Directory('${Directory.systemTemp.parent.path}/files');
       if (!directory.existsSync()) {
@@ -1220,7 +1455,22 @@ class _VaultShellState extends State<VaultShell> {
       }
       return directory;
     }
-    return Directory.systemTemp;
+    final directory = await getApplicationSupportDirectory();
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true);
+    }
+    return directory;
+  }
+
+  Future<Directory> appVaultDirectory() async {
+    final base = Platform.isAndroid
+        ? await appStateDirectory()
+        : await getApplicationDocumentsDirectory();
+    final directory = Directory('${base.path}/ActitPassStorage');
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true);
+    }
+    return directory;
   }
 
   bool isAndroidCacheWalletPath(String path) =>
@@ -1279,10 +1529,21 @@ class _VaultShellState extends State<VaultShell> {
       return;
     }
     if (createMode) {
+      if (creatingVault) return;
+      setState(() {
+        creatingVault = true;
+        message = null;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(const Duration(milliseconds: 16));
       try {
         await createSwlVault(password);
       } catch (error) {
         setState(() => message = 'Не удалось создать .swl базу: $error');
+      } finally {
+        if (mounted) {
+          setState(() => creatingVault = false);
+        }
       }
       return;
     }
@@ -1290,7 +1551,10 @@ class _VaultShellState extends State<VaultShell> {
 
   void scheduleAutoOpenVault(String password) {
     autoOpenTimer?.cancel();
-    if (createMode || unlocked || spbWalletPath == null || spbWalletPath!.isEmpty) {
+    if (createMode ||
+        unlocked ||
+        spbWalletPath == null ||
+        spbWalletPath!.isEmpty) {
       return;
     }
     final candidate = password;
@@ -1369,9 +1633,9 @@ class _VaultShellState extends State<VaultShell> {
   Future<void> loadRecentVaults() async {
     final found = <ExistingVault>[];
     try {
-      if (recentVaultsFile.existsSync()) {
-        final decoded =
-            jsonDecode(await recentVaultsFile.readAsString()) as List<dynamic>;
+      final file = await recentVaultsFile();
+      if (file.existsSync()) {
+        final decoded = jsonDecode(await file.readAsString()) as List<dynamic>;
         for (final raw in decoded) {
           ExistingVault? vault;
           if (raw is String) {
@@ -1430,43 +1694,31 @@ class _VaultShellState extends State<VaultShell> {
   Future<void> rememberRecentVaultEntry(ExistingVault vault) async {
     final entries = [
       vault,
-      ...recentVaults
-          .where((entry) => entry.key != vault.key)
-          .where((entry) =>
-              entry.uri != null ||
-              (entry.path != null && !isAndroidCacheWalletPath(entry.path!))),
+      ...recentVaults.where((entry) => entry.key != vault.key).where((entry) =>
+          entry.uri != null ||
+          (entry.path != null && !isAndroidCacheWalletPath(entry.path!))),
     ].take(8).toList();
-    await recentVaultsFile.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(
-            entries.map((entry) => entry.toJson()).toList()));
+    final file = await recentVaultsFile();
+    await file.writeAsString(const JsonEncoder.withIndent('  ')
+        .convert(entries.map((entry) => entry.toJson()).toList()));
     if (!mounted) return;
     setState(() => recentVaults = entries);
   }
 
   Future<void> createSwlVault(String password) async {
-    final file = swlVaultFile;
-    final wallet = SpbWalletDatabase.create(file.path, password);
-    spbIconIdByUiIcon.clear();
+    final file = await swlVaultFile();
+    if (file.existsSync()) {
+      throw StateError(
+          'База "${file.uri.pathSegments.last}" уже есть. Выберите другое название или откройте существующую базу.');
+    }
     final sourceTemplates = builtInTemplates();
     final templateMap = <String, CardTemplate>{};
+    final preparedTemplates = <CardTemplate>[];
+    final preparedItems = <SecretItem>[];
     for (final template in sourceTemplates) {
       final prepared = prepareSpbTemplate(template, true);
       templateMap[template.id] = prepared;
-      wallet.saveTemplate(
-        SpbWalletTemplateDraft(
-          id: prepared.id,
-          name: prepared.name,
-          iconId: syntheticSpbIconIdForUi(prepared.iconId),
-          fields: prepared.fields
-              .where((field) => field.id != spbDescriptionFieldId)
-              .map((field) => SpbWalletTemplateFieldRecord(
-                  id: field.id,
-                  name: field.label,
-                  templateId: prepared.id,
-                  fieldTypeId: spbFieldTypeId(field)))
-              .toList(),
-        ),
-      );
+      preparedTemplates.add(prepared);
     }
 
     for (final item in demoItems()) {
@@ -1480,25 +1732,44 @@ class _VaultShellState extends State<VaultShell> {
           i++) {
         fieldMap[original.fields[i].id] = template.fields[i].id;
       }
-      wallet.saveCard(
-        SpbWalletCardDraft(
+      preparedItems.add(
+        SecretItem(
           id: SpbWalletDatabase.makeId(),
-          title: item.title,
-          description: '',
-          categoryPath: item.category,
           templateId: template.id,
-          iconId: syntheticSpbIconIdForUi(item.iconId ?? template.iconId),
-          fieldValues: {
+          title: item.title,
+          category: item.category,
+          colorId: item.colorId,
+          values: {
             for (final entry in item.values.entries)
               if (fieldMap[entry.key] != null)
                 fieldMap[entry.key]!: entry.value,
           },
-          cardColor: paletteColorToSpb(item.colorId),
+          modifiedAt: item.modifiedAt,
+          iconId: item.iconId,
           backgroundImageBase64: item.backgroundImageBase64,
         ),
       );
     }
 
+    final payload = <String, dynamic>{
+      'path': file.path,
+      'password': password,
+      'templates':
+          preparedTemplates.map((template) => template.toJson()).toList(),
+      'items': preparedItems.map((item) {
+        final json = item.toJson();
+        json['cardColor'] = paletteColorToSpb(item.colorId);
+        return json;
+      }).toList(),
+      'categoryIcons': demoCategoryIcons(),
+    };
+    await compute<Map<String, dynamic>, bool>(
+      createInitialSwlVaultFile,
+      payload,
+    );
+
+    spbIconIdByUiIcon.clear();
+    final wallet = SpbWalletDatabase.open(file.path, password);
     final snapshot = wallet.loadSnapshot();
     spbWallet?.close();
     spbWallet = wallet;
@@ -1520,6 +1791,16 @@ class _VaultShellState extends State<VaultShell> {
     await rememberRecentVault(file.path);
   }
 
+  Map<String, String> demoCategoryIcons() => const {
+        'Примеры': 'bookmark',
+        'Примеры / Доступы': 'key',
+        'Примеры / Финансы': 'bank',
+        'Примеры / Работа': 'briefcase',
+        'Примеры / Сервисы': 'globe',
+        'Примеры / Документы': 'id',
+        'О программе ActitPassStorage': 'info',
+      };
+
   Future<void> connectSyncVault(String password) async {
     if (syncProvider == 'mounted_folder') {
       final source = resolveMountedFolderSyncFile();
@@ -1528,7 +1809,7 @@ class _VaultShellState extends State<VaultShell> {
               .replaceAll(RegExp(r'\.swl$', caseSensitive: false), '')
           : vaultNameController.text.trim();
       vaultNameController.text = localName;
-      final local = swlVaultFile;
+      final local = await swlVaultFile();
       await source.copy(local.path);
       await openSyncedLocalWallet(
         localPath: local.path,
@@ -1546,7 +1827,7 @@ class _VaultShellState extends State<VaultShell> {
               .replaceAll(RegExp(r'\.swl$', caseSensitive: false), '')
           : vaultNameController.text.trim();
       vaultNameController.text = localName;
-      final local = swlVaultFile;
+      final local = await swlVaultFile();
       await local.writeAsBytes(bytes, flush: true);
       await openSyncedLocalWallet(
         localPath: local.path,
@@ -1731,8 +2012,8 @@ class _VaultShellState extends State<VaultShell> {
       ));
       scheduleAutoOpenVault(passwordController.text);
     } catch (error) {
-      setState(() =>
-          message = 'Не удалось открыть последнюю .swl базу: $error');
+      setState(
+          () => message = 'Не удалось открыть последнюю .swl базу: $error');
     }
   }
 
@@ -1774,26 +2055,27 @@ class _VaultShellState extends State<VaultShell> {
       SecretItem(
         id: makeId('item'),
         templateId: 'tpl_password',
-        title: 'Почта Яндекс',
-        category: 'Личное',
+        title: 'Демо: личный кабинет',
+        category: 'Примеры / Доступы',
         colorId: 'blue',
         modifiedAt: now,
         values: {
-          'username': 'artem@example.com',
-          'password': 'Trudnyj-Parol-2026!',
-          'url': 'https://mail.yandex.ru',
-          'notes': 'Демо-карточка для проверки глазка.',
+          'username': 'user@example.com',
+          'password': 'Example-Password-2026!',
+          'url': 'https://example.com/login',
+          'notes':
+              'Нажмите на любое поле в просмотре карточки, чтобы скопировать значение. Поля типа пароль и секрет скрываются по умолчанию.',
         },
       ),
       SecretItem(
         id: makeId('item'),
         templateId: 'tpl_payment_card',
-        title: 'Основная карта',
-        category: 'Финансы',
+        title: 'Демо: банковская карта',
+        category: 'Примеры / Финансы',
         colorId: 'teal',
         modifiedAt: now,
         values: {
-          'holder': 'ARTEM IVANOV',
+          'holder': 'DEMO USER',
           'number': '2200 0000 0000 1234',
           'expires': '2028-11',
           'cvv': '927',
@@ -1802,15 +2084,93 @@ class _VaultShellState extends State<VaultShell> {
       SecretItem(
         id: makeId('item'),
         templateId: 'tpl_bank_account',
-        title: 'Счет для накоплений',
-        category: 'Финансы',
+        title: 'Демо: банковский счет',
+        category: 'Примеры / Финансы',
         colorId: 'blue',
         modifiedAt: now,
         values: {
-          'bank': 'Тинькофф',
-          'account': '40817810099910004312',
-          'login': 'artem-bank',
-          'password': 'Bank-Pass-2026!',
+          'bank': 'Демо Банк',
+          'account': '40817810000000000000',
+          'login': 'demo-bank-login',
+          'password': 'Demo-Bank-Password!',
+        },
+      ),
+      SecretItem(
+        id: makeId('item'),
+        templateId: 'tpl_email_account',
+        title: 'Демо: почтовый аккаунт',
+        category: 'Примеры / Доступы',
+        colorId: 'green',
+        modifiedAt: now,
+        values: {
+          'email': 'mailbox@example.com',
+          'password': 'Mail-Example-Secret!',
+          'recovery': 'backup@example.com',
+          'notes':
+              'Для почты удобно хранить основной пароль, резервный адрес и подсказки по восстановлению.',
+        },
+      ),
+      SecretItem(
+        id: makeId('item'),
+        templateId: 'tpl_api_key',
+        title: 'Демо: API ключ',
+        category: 'Примеры / Работа',
+        colorId: 'violet',
+        modifiedAt: now,
+        values: {
+          'service': 'Example Cloud',
+          'url': 'https://console.example.com',
+          'token': 'ex_live_000000000000000000000000',
+          'notes':
+              'В заметках можно указать права ключа, дату выпуска и где он используется.',
+        },
+      ),
+      SecretItem(
+        id: makeId('item'),
+        templateId: 'tpl_crypto_wallet',
+        title: 'Демо: криптокошелек',
+        category: 'Примеры / Финансы',
+        colorId: 'amber',
+        modifiedAt: now,
+        values: {
+          'wallet': 'Demo Wallet',
+          'address': 'bc1qexample000000000000000000000000000000',
+          'seed': 'example seed phrase words are stored here as a secret',
+          'pin': '000000',
+          'notes':
+              'Это пример структуры. Реальные seed-фразы стоит хранить особенно осторожно и иметь офлайн-резервную копию.',
+        },
+      ),
+      SecretItem(
+        id: makeId('item'),
+        templateId: 'tpl_subscription',
+        title: 'Демо: подписка',
+        category: 'Примеры / Сервисы',
+        colorId: 'blue',
+        modifiedAt: now,
+        values: {
+          'service': 'Example Plus',
+          'login': 'user@example.com',
+          'renewal': '2026-12-01',
+          'price': '990',
+          'notes':
+              'Можно хранить дату продления, стоимость и условия отмены подписки.',
+        },
+      ),
+      SecretItem(
+        id: makeId('item'),
+        templateId: 'tpl_travel',
+        title: 'Демо: поездка',
+        category: 'Примеры / Документы',
+        colorId: 'violet',
+        modifiedAt: now,
+        values: {
+          'carrier': 'Example Airlines',
+          'booking': 'ABC123',
+          'date': '2026-08-15',
+          'document': 'Demo Passport 000000000',
+          'notes':
+              'Для поездок можно хранить бронь, дату, номер документа и добавить вложения с билетами.',
         },
       ),
       SecretItem(
@@ -1822,7 +2182,7 @@ class _VaultShellState extends State<VaultShell> {
         modifiedAt: now,
         values: {
           'note':
-              'База хранится локально в формате .swl. Изменения записываются обратно в тот же файл.',
+              'База создается и открывается как обычный файл SPB Wallet .swl. При открытии существующей базы приложение старается не конвертировать формат, а записывать изменения обратно в исходную .swl базу.',
         },
       ),
       SecretItem(
@@ -1834,7 +2194,7 @@ class _VaultShellState extends State<VaultShell> {
         modifiedAt: now,
         values: {
           'note':
-              'На стартовом экране можно выбрать .swl файл вручную или открыть один из последних выбранных файлов.',
+              'На стартовом экране можно выбрать .swl файл вручную или открыть один из последних выбранных файлов. На Android выбранный файл показывается как исходный файл из Downloads, хотя технически SQLite работает через временную рабочую копию.',
         },
       ),
       SecretItem(
@@ -1846,7 +2206,31 @@ class _VaultShellState extends State<VaultShell> {
         modifiedAt: now,
         values: {
           'note':
-              'У карточек есть отдельные кнопки заметок и вложений со счетчиками. Вложения сохраняются в родном zlib+AES формате .swl.',
+              'У карточек есть кнопка вложений. В просмотре вложения открываются без редактирования, а изменение вложений доступно через режим редактирования карточки.',
+        },
+      ),
+      SecretItem(
+        id: makeId('item'),
+        templateId: 'tpl_note',
+        title: 'Копирование значений',
+        category: 'О программе ActitPassStorage',
+        colorId: 'neutral',
+        modifiedAt: now,
+        values: {
+          'note':
+              'В просмотре карточки нажмите на поле, чтобы скопировать его значение. Для паролей копируется настоящее значение, даже если на экране показаны точки.',
+        },
+      ),
+      SecretItem(
+        id: makeId('item'),
+        templateId: 'tpl_note',
+        title: 'Шаблоны',
+        category: 'О программе ActitPassStorage',
+        colorId: 'neutral',
+        modifiedAt: now,
+        values: {
+          'note':
+              'Встроенные шаблоны служат стартовой библиотекой. Их можно копировать и на основе копии создавать свой вариант с нужными полями и пиктограммой.',
         },
       ),
     ];
@@ -1889,6 +2273,7 @@ class _VaultShellState extends State<VaultShell> {
     templates = spbTemplatesToUi(snapshot.templates);
     items = spbCardsToUi(snapshot.cards);
     categoryIconsByPath = spbCategoryIconsToUi(snapshot.categories);
+    categoryPaths = spbCategoryPathsToUi(snapshot.categories);
   }
 
   String spbFieldTypeToUi(int fieldTypeId, [String fieldName = '']) {
@@ -2002,27 +2387,69 @@ class _VaultShellState extends State<VaultShell> {
 
     for (final category in categories) {
       final path = pathFor(category);
-      if (path.isEmpty || category.iconId.isEmpty) continue;
-      final iconId =
-          uiIconForSpbIcon(category.iconId) ?? defaultIconForCategoryPath(path);
+      if (path.isEmpty) continue;
+      final fallbackIconId = defaultIconForCategoryPath(path);
+      final resolvedIconId = uiIconForSpbIcon(category.iconId);
+      final iconId = (resolvedIconId == null ||
+              (resolvedIconId == 'key' && fallbackIconId != 'key') ||
+              (resolvedIconId == 'folder' && fallbackIconId != 'folder'))
+          ? fallbackIconId
+          : resolvedIconId;
       rememberSpbIcon(iconId, category.iconId);
       result[path] = iconId;
     }
     return result;
   }
 
+  Set<String> spbCategoryPathsToUi(List<SpbWalletCategoryRecord> categories) {
+    final byId = {for (final category in categories) category.id: category};
+    final result = <String>{};
+    String pathFor(SpbWalletCategoryRecord category) {
+      final names = <String>[];
+      var current = category;
+      var guard = 0;
+      while (guard++ < 64) {
+        if (current.name.isNotEmpty) names.add(current.name);
+        final parent = byId[current.parentId];
+        if (parent == null) break;
+        current = parent;
+      }
+      return names.reversed.join(' / ');
+    }
+
+    for (final category in categories) {
+      final path = pathFor(category);
+      if (path.isNotEmpty) result.add(path);
+    }
+    return result;
+  }
+
   String defaultIconForCategoryPath(String path) {
     final normalized = path.toLowerCase();
-    if (normalized.contains('кредит') || normalized.contains('card')) {
+    if (normalized.contains('пример') || normalized.contains('demo')) {
+      if (normalized.contains('финанс')) return 'bank';
+      if (normalized.contains('работ')) return 'briefcase';
+      if (normalized.contains('сервис')) return 'globe';
+      if (normalized.contains('документ')) return 'id';
+      if (normalized.contains('доступ')) return 'key';
+      return 'bookmark';
+    }
+    if (normalized.contains('кредит') ||
+        normalized.contains('карта') ||
+        normalized.contains('card')) {
       return 'card';
     }
     if (normalized.contains('личн') ||
         normalized.contains('паспорт') ||
+        normalized.contains('документ') ||
         normalized.contains('personal')) {
-      return 'contact';
+      return normalized.contains('паспорт') || normalized.contains('документ')
+          ? 'id'
+          : 'contact';
     }
     if (normalized.contains('путеше') ||
         normalized.contains('ави') ||
+        normalized.contains('билет') ||
         normalized.contains('travel') ||
         normalized.contains('flight')) {
       return 'plane';
@@ -2032,14 +2459,41 @@ class _VaultShellState extends State<VaultShell> {
         normalized.contains('spb')) {
       return 'info';
     }
-    if (normalized.contains('банк') || normalized.contains('финанс')) {
+    if (normalized.contains('банк') ||
+        normalized.contains('финанс') ||
+        normalized.contains('деньг') ||
+        normalized.contains('money')) {
       return 'bank';
     }
     if (normalized.contains('почт') || normalized.contains('mail')) {
       return 'mail';
     }
-    if (normalized.contains('работ') || normalized.contains('office')) {
+    if (normalized.contains('работ') ||
+        normalized.contains('проект') ||
+        normalized.contains('office') ||
+        normalized.contains('work')) {
       return 'briefcase';
+    }
+    if (normalized.contains('сервис') ||
+        normalized.contains('сайт') ||
+        normalized.contains('web') ||
+        normalized.contains('internet')) {
+      return 'globe';
+    }
+    if (normalized.contains('дом') || normalized.contains('home')) {
+      return 'home';
+    }
+    if (normalized.contains('здоров') || normalized.contains('мед')) {
+      return 'heart';
+    }
+    if (normalized.contains('сем') || normalized.contains('family')) {
+      return 'family';
+    }
+    if (normalized.contains('покуп') || normalized.contains('shop')) {
+      return 'cart';
+    }
+    if (normalized.contains('архив') || normalized.contains('archive')) {
+      return 'snowflake';
     }
     return 'folder';
   }
@@ -2074,8 +2528,7 @@ class _VaultShellState extends State<VaultShell> {
                   )
                 : Row(
                     children: [
-                      SizedBox(
-                          width: 52, child: buildMenuHandle(compact: false)),
+                      SizedBox(width: 56, child: buildCollapsedRail()),
                       if (menuOpen)
                         SizedBox(width: 260, child: buildSideRail()),
                       Expanded(child: buildContent()),
@@ -2088,7 +2541,7 @@ class _VaultShellState extends State<VaultShell> {
     );
   }
 
-  bool isMenuOpen(bool compact) => menuOpenOverride ?? !compact;
+  bool isMenuOpen(bool compact) => menuOpenOverride ?? false;
 
   void toggleMenu(bool compact) {
     final current = isMenuOpen(compact);
@@ -2153,6 +2606,50 @@ class _VaultShellState extends State<VaultShell> {
     );
   }
 
+  Widget buildCollapsedRail() {
+    return Material(
+      color: Colors.white,
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          IconButton(
+            tooltip: 'Меню',
+            icon: const Icon(Icons.menu),
+            onPressed: () => toggleMenu(false),
+          ),
+          const Divider(height: 16),
+          ...navEntries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: IconButton(
+                tooltip: entry.label,
+                isSelected: activeView == entry.id,
+                icon: Icon(entry.icon),
+                selectedIcon: Icon(entry.icon),
+                style: IconButton.styleFrom(
+                  backgroundColor: activeView == entry.id
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : null,
+                  foregroundColor: activeView == entry.id
+                      ? Theme.of(context).colorScheme.onPrimaryContainer
+                      : null,
+                ),
+                onPressed: () => setState(() => activeView = entry.id),
+              ),
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Заблокировать',
+            icon: const Icon(Icons.lock_outline),
+            onPressed: lockVault,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
   Widget databaseStatusBar() {
     return Material(
       color: const Color(0xffedf2f6),
@@ -2207,138 +2704,186 @@ class _VaultShellState extends State<VaultShell> {
 
   Widget buildLocked() {
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 960),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Wrap(
-              spacing: 24,
-              runSpacing: 24,
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SizedBox(
-                  width: 360,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+      body: Stack(
+        children: [
+          AbsorbPointer(
+            absorbing: creatingVault,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Wrap(
+                    spacing: 24,
+                    runSpacing: 24,
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const CircleAvatar(
-                          radius: 32,
-                          child: Text('A', style: TextStyle(fontSize: 28))),
-                      const SizedBox(height: 18),
-                      Text('ActitPassStorage',
-                          style: Theme.of(context).textTheme.headlineMedium),
-                      const SizedBox(height: 8),
-                      const Text(
-                          'Менеджер паролей, заметок и настраиваемых карточек. Локальная .swl база на устройстве.'),
+                      SizedBox(
+                        width: 360,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircleAvatar(
+                                radius: 32,
+                                child:
+                                    Text('A', style: TextStyle(fontSize: 28))),
+                            const SizedBox(height: 18),
+                            Text('ActitPassStorage',
+                                style:
+                                    Theme.of(context).textTheme.headlineMedium),
+                            const SizedBox(height: 8),
+                            const Text(
+                                'Менеджер паролей, заметок и настраиваемых карточек. Локальная .swl база на устройстве.'),
+                          ],
+                        ),
+                      ),
+                      Card(
+                        elevation: 0,
+                        clipBehavior: Clip.antiAlias,
+                        child: SizedBox(
+                          width: 380,
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SegmentedButton<EntryMode>(
+                                  segments: const [
+                                    ButtonSegment(
+                                        value: EntryMode.openSwl,
+                                        label: Text('Открыть .swl')),
+                                    ButtonSegment(
+                                        value: EntryMode.createSwl,
+                                        label: Text('Создать .swl')),
+                                  ],
+                                  selected: {entryMode},
+                                  onSelectionChanged: (value) => setState(() {
+                                    entryMode = value.first;
+                                    lastAutoOpenPassword = null;
+                                    message = null;
+                                    if (entryMode == EntryMode.createSwl) {
+                                      vaultNameController.text =
+                                          vaultNameController
+                                              .text
+                                              .trim()
+                                              .replaceAll(
+                                                  RegExp(r'\.swl$',
+                                                      caseSensitive: false),
+                                                  '');
+                                    }
+                                  }),
+                                ),
+                                const SizedBox(height: 18),
+                                if (!createMode && recentVaults.isNotEmpty)
+                                  buildRecentVaultsPicker(),
+                                if (!createMode) ...[
+                                  OutlinedButton.icon(
+                                    onPressed: pickSpbWalletFile,
+                                    icon: const Icon(Icons.folder_open),
+                                    label: const Text('Выбрать .swl файл'),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      spbWalletUserPath() == null
+                                          ? 'Файл .swl не выбран'
+                                          : spbWalletUserPath()!,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ] else
+                                  TextField(
+                                    controller: vaultNameController,
+                                    decoration: const InputDecoration(
+                                        labelText: 'Название базы',
+                                        border: OutlineInputBorder()),
+                                  ),
+                                const SizedBox(height: 12),
+                                PasswordField(
+                                  controller: passwordController,
+                                  label: 'Пароль .swl базы',
+                                  visible: showPassword,
+                                  onToggle: () => setState(
+                                      () => showPassword = !showPassword),
+                                  onChanged: scheduleAutoOpenVault,
+                                  onSubmitted: (_) => unlock(),
+                                ),
+                                if (createMode) ...[
+                                  const SizedBox(height: 12),
+                                  PasswordField(
+                                    controller: confirmController,
+                                    label: 'Повторите пароль',
+                                    visible: showConfirm,
+                                    onToggle: () => setState(
+                                        () => showConfirm = !showConfirm),
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                    onPressed: creatingVault ? null : unlock,
+                                    child: Text(entryMode == EntryMode.createSwl
+                                        ? 'Создать .swl базу'
+                                        : 'Открыть .swl базу'),
+                                  ),
+                                ),
+                                if (message != null) ...[
+                                  const SizedBox(height: 12),
+                                  Text(message!,
+                                      style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Card(
-                  elevation: 0,
-                  clipBehavior: Clip.antiAlias,
-                  child: SizedBox(
-                    width: 380,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SegmentedButton<EntryMode>(
-                            segments: const [
-                              ButtonSegment(
-                                  value: EntryMode.openSwl,
-                                  label: Text('Открыть .swl')),
-                              ButtonSegment(
-                                  value: EntryMode.createSwl,
-                                  label: Text('Создать .swl')),
-                            ],
-                            selected: {entryMode},
-                            onSelectionChanged: (value) => setState(() {
-                              entryMode = value.first;
-                              lastAutoOpenPassword = null;
-                              message = null;
-                              if (entryMode == EntryMode.createSwl) {
-                                vaultNameController.text = vaultNameController
-                                    .text
-                                    .trim()
-                                    .replaceAll(RegExp(r'\.swl$',
-                                        caseSensitive: false), '');
-                              }
-                            }),
-                          ),
-                          const SizedBox(height: 18),
-                          if (!createMode && recentVaults.isNotEmpty)
-                            buildRecentVaultsPicker(),
-                          if (!createMode) ...[
-                            OutlinedButton.icon(
-                              onPressed: pickSpbWalletFile,
-                              icon: const Icon(Icons.folder_open),
-                              label: const Text('Выбрать .swl файл'),
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                spbWalletUserPath() == null
-                                    ? 'Файл .swl не выбран'
-                                    : spbWalletUserPath()!,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ] else
-                            TextField(
-                              controller: vaultNameController,
-                              decoration: const InputDecoration(
-                                  labelText: 'Название базы',
-                                  border: OutlineInputBorder()),
-                            ),
-                          const SizedBox(height: 12),
-                          PasswordField(
-                            controller: passwordController,
-                            label: 'Пароль .swl базы',
-                            visible: showPassword,
-                            onToggle: () =>
-                                setState(() => showPassword = !showPassword),
-                            onChanged: scheduleAutoOpenVault,
-                            onSubmitted: (_) => unlock(),
-                          ),
-                          if (createMode) ...[
-                            const SizedBox(height: 12),
-                            PasswordField(
-                              controller: confirmController,
-                              label: 'Повторите пароль',
-                              visible: showConfirm,
-                              onToggle: () =>
-                                  setState(() => showConfirm = !showConfirm),
-                            ),
-                          ],
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: unlock,
-                              child: Text(entryMode == EntryMode.createSwl
-                                  ? 'Создать .swl базу'
-                                  : 'Открыть .swl базу'),
-                            ),
-                          ),
-                          if (message != null) ...[
-                            const SizedBox(height: 12),
-                            Text(message!,
-                                style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.error)),
-                          ],
-                        ],
-                      ),
-                    ),
+              ),
+            ),
+          ),
+          if (creatingVault) buildCreatingVaultOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget buildCreatingVaultOverlay() {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.18),
+        child: Center(
+          child: Card(
+            elevation: 8,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: CircularProgressIndicator(strokeWidth: 3),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Text('Создаем .swl базу',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Добавляем шаблоны, папки и демо-карточки...',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -2501,22 +3046,16 @@ class _VaultShellState extends State<VaultShell> {
   }
 
   List<Widget> navButtons({bool compact = false}) {
-    final entries = [
-      ('cards', Icons.credit_card, 'Карточки'),
-      ('frequent', Icons.star_outline, 'Частые'),
-      ('templates', Icons.dashboard_customize_outlined, 'Шаблоны'),
-      ('settings', Icons.settings_outlined, 'Настройки'),
-    ];
-    return entries
+    return navEntries
         .map(
           (entry) => Padding(
             padding: EdgeInsets.only(
                 bottom: compact ? 0 : 8, right: compact ? 8 : 0),
             child: NavigationButton(
-              selected: activeView == entry.$1,
-              icon: entry.$2,
-              label: entry.$3,
-              onTap: () => setState(() => activeView = entry.$1),
+              selected: activeView == entry.id,
+              icon: entry.icon,
+              label: entry.label,
+              onTap: () => setState(() => activeView = entry.id),
             ),
           ),
         )
@@ -2764,20 +3303,34 @@ class _VaultShellState extends State<VaultShell> {
                 style: TextStyle(fontWeight: FontWeight.w700)),
           ),
           Expanded(
-            child: root.isEmpty
-                ? const Center(child: Text('Карточек не найдено'))
-                : ListView(
+            child: ListView(
+              children: [
+                ExpansionTile(
+                  initiallyExpanded: true,
+                  leading: const Icon(Icons.account_balance_wallet_outlined),
+                  title: Row(
                     children: [
-                      ExpansionTile(
-                        initiallyExpanded: true,
-                        leading:
-                            const Icon(Icons.account_balance_wallet_outlined),
-                        title: const Text('Мой кошелёк'),
-                        children: treeChildren(root, 0,
-                            openCardsInDialog: openCardsInDialog),
+                      const Expanded(child: Text('Мой кошелёк')),
+                      Tooltip(
+                        message: 'Создать папку',
+                        child: IconButton(
+                          icon: const Icon(Icons.create_new_folder_outlined),
+                          onPressed: () => openCategoryEditorDialog(
+                              parentPath: '', folder: null),
+                        ),
                       ),
                     ],
                   ),
+                  children: root.isEmpty
+                      ? const [
+                          ListTile(
+                              dense: true, title: Text('Карточек не найдено'))
+                        ]
+                      : treeChildren(root, 0,
+                          openCardsInDialog: openCardsInDialog),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -2786,24 +3339,32 @@ class _VaultShellState extends State<VaultShell> {
 
   CategoryTreeNode buildCategoryTree(List<SecretItem> source) {
     final root = CategoryTreeNode('Мой кошелёк');
+    for (final path in {...categoryPaths, ...categoryIconsByPath.keys}) {
+      ensureCategoryTreeNode(root, path);
+    }
     for (final item in source) {
-      var node = root;
-      final pathParts = <String>[];
-      for (final part in categoryParts(item.category)) {
-        pathParts.add(part);
-        final path = pathParts.join(' / ');
-        node = node.children.putIfAbsent(
-          part,
-          () => CategoryTreeNode(
-            part,
-            path: path,
-            iconId: categoryIconsByPath[path],
-          ),
-        );
-      }
+      final node = ensureCategoryTreeNode(root, item.category);
       node.cards.add(item);
     }
     return root;
+  }
+
+  CategoryTreeNode ensureCategoryTreeNode(CategoryTreeNode root, String path) {
+    var node = root;
+    final pathParts = <String>[];
+    for (final part in categoryParts(path)) {
+      pathParts.add(part);
+      final currentPath = pathParts.join(' / ');
+      node = node.children.putIfAbsent(
+        part,
+        () => CategoryTreeNode(
+          part,
+          path: currentPath,
+          iconId: categoryIconsByPath[currentPath],
+        ),
+      );
+    }
+    return node;
   }
 
   List<String> categoryParts(String value) {
@@ -2816,6 +3377,8 @@ class _VaultShellState extends State<VaultShell> {
 
   List<String> existingCategories() {
     final categories = {
+      ...categoryPaths,
+      ...categoryIconsByPath.keys,
       for (final item in items)
         if (item.category.trim().isNotEmpty) item.category.trim(),
     }.toList();
@@ -2835,15 +3398,30 @@ class _VaultShellState extends State<VaultShell> {
           child: ExpansionTile(
             initiallyExpanded: true,
             leading: Tooltip(
-              message: 'Выбрать пиктограмму папки',
+              message: 'Изменить папку',
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () => openCategoryIconDialog(folder),
-                child: categoryFolderIcon(folder.iconId),
+                onTap: () => openCategoryEditorDialog(folder: folder),
+                child: categoryFolderIcon(
+                    folder.iconId ?? defaultIconForCategoryPath(folder.path)),
               ),
             ),
-            title:
-                Text(folder.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(folder.name,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                Tooltip(
+                  message: 'Создать подпапку',
+                  child: IconButton(
+                    icon: const Icon(Icons.create_new_folder_outlined),
+                    onPressed: () => openCategoryEditorDialog(
+                        parentPath: folder.path, folder: null),
+                  ),
+                ),
+              ],
+            ),
             children: treeChildren(folder, depth + 1,
                 openCardsInDialog: openCardsInDialog),
           ),
@@ -2875,58 +3453,129 @@ class _VaultShellState extends State<VaultShell> {
     return children;
   }
 
-  Widget categoryFolderIcon(String? iconId) {
+  Widget categoryFolderIcon(String iconId) {
     return SizedBox(
-      width: 32,
-      height: 32,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Positioned(
-            left: 3,
-            top: 5,
-            child: Icon(Icons.folder_outlined, size: 23),
-          ),
-          if (iconId != null && iconId.isNotEmpty)
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 1,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(1.5),
-                  child: templateIconWidget(iconId, size: 11),
-                ),
-              ),
-            ),
-        ],
+      width: 38,
+      height: 38,
+      child: Center(
+        child: templateIconWidget(
+          iconId.isEmpty ? 'folder' : iconId,
+          size: 30,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }
 
-  Future<void> openCategoryIconDialog(CategoryTreeNode folder) async {
-    if (folder.path.isEmpty) return;
-    final picked =
-        await showIconPickerDialog(context, folder.iconId ?? 'folder');
-    if (picked == null) return;
+  Future<void> openCategoryEditorDialog({
+    required CategoryTreeNode? folder,
+    String parentPath = '',
+  }) async {
     final wallet = spbWallet;
     if (wallet == null) {
       setState(() =>
           message = 'Откройте или создайте .swl базу перед изменением папок.');
       return;
     }
+    final editing = folder != null;
+    final nameController = TextEditingController(text: folder?.name ?? '');
+    var iconId = folder?.iconId ?? defaultIconForCategoryPath(parentPath);
+    final saved = await showDialog<({String name, String iconId})>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(editing ? 'Изменить папку' : 'Создать папку'),
+          content: SizedBox(
+            width: min(MediaQuery.of(context).size.width - 48, 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Название папки',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) {
+                    final name = nameController.text.trim();
+                    if (name.isNotEmpty && !name.contains('/')) {
+                      Navigator.pop(context, (name: name, iconId: iconId));
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: templateIconWidget(iconId),
+                    label: const Text('Пиктограмма папки'),
+                    onPressed: () async {
+                      final picked =
+                          await showIconPickerDialog(context, iconId);
+                      if (picked != null) {
+                        setDialogState(() => iconId = picked);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (editing)
+              TextButton.icon(
+                onPressed: () => Navigator.pop(
+                    context, (name: '__delete__', iconId: iconId)),
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Удалить'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty || name.contains('/')) return;
+                Navigator.pop(context, (name: name, iconId: iconId));
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      ),
+    );
+    nameController.dispose();
+    if (saved == null) return;
+    if (editing && saved.name == '__delete__') {
+      final confirmed = await confirmDeleteCategory(folder);
+      if (confirmed != true) return;
+      try {
+        wallet.deleteCategory(folder.path);
+        await writeBackSpbWallet();
+        final snapshot = wallet.loadSnapshot();
+        setState(() {
+          applySpbSnapshot(snapshot);
+          message = null;
+        });
+      } catch (error) {
+        setState(() => message = 'Не удалось удалить папку: $error');
+      }
+      return;
+    }
+    final fullPath = [
+      if (!editing && parentPath.trim().isNotEmpty) parentPath.trim(),
+      saved.name,
+    ].join(' / ');
     try {
-      wallet.saveCategoryIcon(
-        folder.path,
-        spbIconIdForUi(picked, 'folder') ?? syntheticSpbIconIdForUi(picked),
-      );
+      final spbIconId = spbIconIdForUi(saved.iconId, 'folder') ??
+          syntheticSpbIconIdForUi(saved.iconId);
+      if (editing) {
+        wallet.renameCategory(folder.path, saved.name, spbIconId);
+      } else {
+        wallet.createCategory(fullPath, spbIconId);
+      }
       await writeBackSpbWallet();
       final snapshot = wallet.loadSnapshot();
       setState(() {
@@ -2934,9 +3583,30 @@ class _VaultShellState extends State<VaultShell> {
         message = null;
       });
     } catch (error) {
-      setState(
-          () => message = 'Не удалось сохранить пиктограмму папки: $error');
+      setState(() => message = 'Не удалось сохранить папку: $error');
     }
+  }
+
+  Future<bool?> confirmDeleteCategory(CategoryTreeNode folder) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить папку?'),
+        content: Text(
+          'Папка "${folder.name}" и ее подпапки будут удалены. Карточки из этих папок будут перенесены на уровень выше.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget emptyCardDetail() {
@@ -3386,9 +4056,8 @@ class _VaultShellState extends State<VaultShell> {
                     final attachment = visibleAttachments[index];
                     final hasError = attachment.decodeError != null;
                     return ListTile(
-                      leading: Icon(hasError
-                          ? Icons.error_outline
-                          : Icons.attach_file),
+                      leading: Icon(
+                          hasError ? Icons.error_outline : Icons.attach_file),
                       title: Text(attachment.fileName),
                       subtitle: Text(
                         hasError
@@ -3490,7 +4159,8 @@ class _VaultShellState extends State<VaultShell> {
                   trailing: Wrap(
                     spacing: 4,
                     children: [
-                      if (template.builtIn) const Chip(label: Text('Встроенный')),
+                      if (template.builtIn)
+                        const Chip(label: Text('Встроенный')),
                       IconButton(
                         tooltip: 'Скопировать в новый шаблон',
                         icon: const Icon(Icons.copy),
@@ -3639,7 +4309,8 @@ class _VaultShellState extends State<VaultShell> {
     }
   }
 
-  Future<void> openTemplateDialog({CardTemplate? template, CardTemplate? draft}) async {
+  Future<void> openTemplateDialog(
+      {CardTemplate? template, CardTemplate? draft}) async {
     if (template != null && draft == null) {
       setState(() => message =
           'Существующие шаблоны доступны только для просмотра. Создайте новый шаблон или копию.');
@@ -3906,12 +4577,16 @@ class FieldValueRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      value,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: foreground, fontWeight: FontWeight.w600),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 180),
+                      child: SingleChildScrollView(
+                        primary: false,
+                        child: Text(
+                          value,
+                          style: TextStyle(
+                              color: foreground, fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -4592,15 +5267,12 @@ class _TemplateEditorDialogState extends State<TemplateEditorDialog> {
     colorId = widget.initial?.colorId ?? 'neutral';
     final sourceFields = widget.initial?.fields ??
         const [
-            FieldDefinition(id: 'username', label: 'Логин', type: 'username'),
-            FieldDefinition(
-                id: 'password',
-                label: 'Пароль',
-                type: 'password',
-                secret: true),
-            FieldDefinition(
-                id: 'notes', label: 'Заметки', type: 'multiline_note'),
-          ];
+          FieldDefinition(id: 'username', label: 'Логин', type: 'username'),
+          FieldDefinition(
+              id: 'password', label: 'Пароль', type: 'password', secret: true),
+          FieldDefinition(
+              id: 'notes', label: 'Заметки', type: 'multiline_note'),
+        ];
     fields = [
       for (final field
           in sourceFields.where((field) => field.id != spbDescriptionFieldId))

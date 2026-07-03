@@ -36,7 +36,9 @@ class SpbWalletDatabase {
 
   static SpbWalletDatabase create(String path, String password) {
     final file = File(path);
-    if (file.existsSync()) file.deleteSync();
+    if (file.existsSync()) {
+      throw const SpbWalletOpenException('База SPB Wallet уже существует.');
+    }
     final db = sqlite3.open(path);
     final wallet = SpbWalletDatabase._(path, db, SpbWalletCrypto(password));
     wallet._createSchema();
@@ -385,6 +387,70 @@ class SpbWalletDatabase {
     });
   }
 
+  void createCategory(String categoryPath, String iconId) {
+    _transaction(() {
+      final categoryId = _ensureCategoryPath(categoryPath);
+      if (categoryId.isEmpty || iconId.isEmpty) return;
+      _db.execute(
+        'UPDATE spbwlt_Category SET IconID = ? WHERE hex(ID) = ?',
+        [_idFromHex(iconId), categoryId],
+      );
+    });
+  }
+
+  void renameCategory(String categoryPath, String newName, String iconId) {
+    _transaction(() {
+      final categoryId = _categoryIdForPath(categoryPath);
+      if (categoryId == null) {
+        throw const SpbWalletOpenException('Папка SPB Wallet не найдена.');
+      }
+      final cleanName = newName.trim();
+      if (cleanName.isEmpty || cleanName.contains('/')) {
+        throw const SpbWalletOpenException('Некорректное имя папки.');
+      }
+      final parentId = _categoryParentId(categoryId);
+      final siblingRows = _db.select(
+          'SELECT hex(ID) AS ID, Name FROM spbwlt_Category WHERE hex(ParentCategoryID) = ?',
+          [parentId]);
+      for (final row in siblingRows) {
+        final id = _string(row['ID']);
+        if (id != categoryId && crypto.decryptText(row['Name']) == cleanName) {
+          throw const SpbWalletOpenException(
+              'Папка с таким именем уже существует.');
+        }
+      }
+      _db.execute(
+        'UPDATE spbwlt_Category SET Name = ?, IconID = ? WHERE hex(ID) = ?',
+        [crypto.encryptText(cleanName), _idFromHex(iconId), categoryId],
+      );
+    });
+  }
+
+  void deleteCategory(String categoryPath) {
+    _transaction(() {
+      final categoryId = _categoryIdForPath(categoryPath);
+      if (categoryId == null) {
+        throw const SpbWalletOpenException('Папка SPB Wallet не найдена.');
+      }
+      final parentId = _categoryParentId(categoryId);
+      final descendants = _categoryDescendantIds(categoryId);
+      final ids = [...descendants, categoryId];
+      for (final id in ids) {
+        _db.execute(
+          'UPDATE spbwlt_Card SET ParentCategoryID = ? WHERE hex(ParentCategoryID) = ?',
+          [_idFromHex(parentId), id],
+        );
+      }
+      for (final id in descendants.reversed) {
+        _db.execute('DELETE FROM spbwlt_Category WHERE hex(ID) = ?', [id]);
+      }
+      _db.execute(
+        'DELETE FROM spbwlt_Category WHERE hex(ID) = ?',
+        [categoryId],
+      );
+    });
+  }
+
   void flushToDisk() {
     _db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
   }
@@ -691,6 +757,57 @@ CREATE INDEX idx_TemplateField ON spbwlt_TemplateField (TemplateID);
       parentId = found;
     }
     return parentId;
+  }
+
+  String? _categoryIdForPath(String path) {
+    final cleanParts = path
+        .split('/')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (cleanParts.isEmpty) return null;
+
+    var parentId = '';
+    String? currentId;
+    for (final part in cleanParts) {
+      currentId = null;
+      final rows = _db.select(
+          'SELECT hex(ID) AS ID, Name FROM spbwlt_Category WHERE hex(ParentCategoryID) = ?',
+          [parentId]);
+      for (final row in rows) {
+        if (crypto.decryptText(row['Name']) == part) {
+          currentId = _string(row['ID']);
+          break;
+        }
+      }
+      if (currentId == null) return null;
+      parentId = currentId;
+    }
+    return currentId;
+  }
+
+  String _categoryParentId(String categoryId) {
+    final rows = _db.select(
+        'SELECT hex(ParentCategoryID) AS ParentCategoryID FROM spbwlt_Category WHERE hex(ID) = ?',
+        [categoryId]);
+    return rows.isEmpty ? '' : _string(rows.first['ParentCategoryID']);
+  }
+
+  List<String> _categoryDescendantIds(String categoryId) {
+    final result = <String>[];
+    void collect(String parentId) {
+      final rows = _db.select(
+          'SELECT hex(ID) AS ID FROM spbwlt_Category WHERE hex(ParentCategoryID) = ?',
+          [parentId]);
+      for (final row in rows) {
+        final id = _string(row['ID']);
+        result.add(id);
+        collect(id);
+      }
+    }
+
+    collect(categoryId);
+    return result;
   }
 
   String _categoryPath(
