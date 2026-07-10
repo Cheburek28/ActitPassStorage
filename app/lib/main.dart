@@ -2711,144 +2711,160 @@ class _VaultShellState extends State<VaultShell> {
         children: [
           AbsorbPointer(
             absorbing: creatingVault,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 960),
-                child: Padding(
+            child: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
-                  child: Wrap(
-                    spacing: 24,
-                    runSpacing: 24,
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 360,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: max(0, constraints.maxHeight - 48),
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: Wrap(
+                          spacing: 24,
+                          runSpacing: 24,
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            const CircleAvatar(
-                                radius: 32,
-                                child:
-                                    Text('A', style: TextStyle(fontSize: 28))),
-                            const SizedBox(height: 18),
-                            Text('ActitPassStorage',
-                                style:
-                                    Theme.of(context).textTheme.headlineMedium),
-                            const SizedBox(height: 8),
-                            const Text(
-                                'Менеджер паролей, заметок и настраиваемых карточек. Локальная .swl база на устройстве.'),
+                            SizedBox(
+                              width: 360,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircleAvatar(
+                                      radius: 32,
+                                      child: Text('A',
+                                          style: TextStyle(fontSize: 28))),
+                                  const SizedBox(height: 18),
+                                  Text('ActitPassStorage',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                      'Менеджер паролей, заметок и настраиваемых карточек. Локальная .swl база на устройстве.'),
+                                ],
+                              ),
+                            ),
+                            Card(
+                              elevation: 0,
+                              clipBehavior: Clip.antiAlias,
+                              child: SizedBox(
+                                width: 380,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SegmentedButton<EntryMode>(
+                                        segments: const [
+                                          ButtonSegment(
+                                              value: EntryMode.openSwl,
+                                              label: Text('Открыть .swl')),
+                                          ButtonSegment(
+                                              value: EntryMode.createSwl,
+                                              label: Text('Создать .swl')),
+                                        ],
+                                        selected: {entryMode},
+                                        onSelectionChanged: (value) =>
+                                            setState(() {
+                                          entryMode = value.first;
+                                          lastAutoOpenPassword = null;
+                                          message = null;
+                                          if (entryMode ==
+                                              EntryMode.createSwl) {
+                                            vaultNameController.text =
+                                                vaultNameController.text
+                                                    .trim()
+                                                    .replaceAll(
+                                                        RegExp(r'\.swl$',
+                                                            caseSensitive:
+                                                                false),
+                                                        '');
+                                          }
+                                        }),
+                                      ),
+                                      const SizedBox(height: 18),
+                                      if (!createMode &&
+                                          recentVaults.isNotEmpty)
+                                        buildRecentVaultsPicker(),
+                                      if (!createMode) ...[
+                                        OutlinedButton.icon(
+                                          onPressed: pickSpbWalletFile,
+                                          icon: const Icon(Icons.folder_open),
+                                          label:
+                                              const Text('Выбрать .swl файл'),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            spbWalletUserPath() == null
+                                                ? 'Файл .swl не выбран'
+                                                : spbWalletUserPath()!,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ] else
+                                        TextField(
+                                          controller: vaultNameController,
+                                          decoration: const InputDecoration(
+                                              labelText: 'Название базы',
+                                              border: OutlineInputBorder()),
+                                        ),
+                                      const SizedBox(height: 12),
+                                      PasswordField(
+                                        controller: passwordController,
+                                        label: 'Пароль .swl базы',
+                                        visible: showPassword,
+                                        onToggle: () => setState(
+                                            () => showPassword = !showPassword),
+                                        onChanged: scheduleAutoOpenVault,
+                                        onSubmitted: (_) => unlock(),
+                                      ),
+                                      if (createMode) ...[
+                                        const SizedBox(height: 12),
+                                        PasswordField(
+                                          controller: confirmController,
+                                          label: 'Повторите пароль',
+                                          visible: showConfirm,
+                                          onToggle: () => setState(
+                                              () => showConfirm = !showConfirm),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 16),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: FilledButton(
+                                          onPressed:
+                                              creatingVault ? null : unlock,
+                                          child: Text(
+                                              entryMode == EntryMode.createSwl
+                                                  ? 'Создать .swl базу'
+                                                  : 'Открыть .swl базу'),
+                                        ),
+                                      ),
+                                      if (message != null) ...[
+                                        const SizedBox(height: 12),
+                                        Text(message!,
+                                            style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .error)),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      Card(
-                        elevation: 0,
-                        clipBehavior: Clip.antiAlias,
-                        child: SizedBox(
-                          width: 380,
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SegmentedButton<EntryMode>(
-                                  segments: const [
-                                    ButtonSegment(
-                                        value: EntryMode.openSwl,
-                                        label: Text('Открыть .swl')),
-                                    ButtonSegment(
-                                        value: EntryMode.createSwl,
-                                        label: Text('Создать .swl')),
-                                  ],
-                                  selected: {entryMode},
-                                  onSelectionChanged: (value) => setState(() {
-                                    entryMode = value.first;
-                                    lastAutoOpenPassword = null;
-                                    message = null;
-                                    if (entryMode == EntryMode.createSwl) {
-                                      vaultNameController.text =
-                                          vaultNameController
-                                              .text
-                                              .trim()
-                                              .replaceAll(
-                                                  RegExp(r'\.swl$',
-                                                      caseSensitive: false),
-                                                  '');
-                                    }
-                                  }),
-                                ),
-                                const SizedBox(height: 18),
-                                if (!createMode && recentVaults.isNotEmpty)
-                                  buildRecentVaultsPicker(),
-                                if (!createMode) ...[
-                                  OutlinedButton.icon(
-                                    onPressed: pickSpbWalletFile,
-                                    icon: const Icon(Icons.folder_open),
-                                    label: const Text('Выбрать .swl файл'),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      spbWalletUserPath() == null
-                                          ? 'Файл .swl не выбран'
-                                          : spbWalletUserPath()!,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ] else
-                                  TextField(
-                                    controller: vaultNameController,
-                                    decoration: const InputDecoration(
-                                        labelText: 'Название базы',
-                                        border: OutlineInputBorder()),
-                                  ),
-                                const SizedBox(height: 12),
-                                PasswordField(
-                                  controller: passwordController,
-                                  label: 'Пароль .swl базы',
-                                  visible: showPassword,
-                                  onToggle: () => setState(
-                                      () => showPassword = !showPassword),
-                                  onChanged: scheduleAutoOpenVault,
-                                  onSubmitted: (_) => unlock(),
-                                ),
-                                if (createMode) ...[
-                                  const SizedBox(height: 12),
-                                  PasswordField(
-                                    controller: confirmController,
-                                    label: 'Повторите пароль',
-                                    visible: showConfirm,
-                                    onToggle: () => setState(
-                                        () => showConfirm = !showConfirm),
-                                  ),
-                                ],
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton(
-                                    onPressed: creatingVault ? null : unlock,
-                                    child: Text(entryMode == EntryMode.createSwl
-                                        ? 'Создать .swl базу'
-                                        : 'Открыть .swl базу'),
-                                  ),
-                                ),
-                                if (message != null) ...[
-                                  const SizedBox(height: 12),
-                                  Text(message!,
-                                      style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .error)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
